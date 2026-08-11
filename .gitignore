@@ -47,5 +47,8 @@ htmlcov/
 # Playwright / 工具临时文件
 .playwright-mcp/
 
+# 历史文件
+.history/
+
 # Claude
 .claude/todos.json
