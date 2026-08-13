@@ -11,11 +11,11 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第零阶段：Python 语言速通 |
-| **当前学习项** | 0.5 异步基础 |
-| **总进度** | 4 / 32 |
+| **当前学习项** | 0.6 Pydantic |
+| **总进度** | 5 / 32 |
 | **已完成阶段** | 无 |
-| **最近学习日期** | 2026-08-12 |
-| **最近学习内容** | 0.4 虚拟环境 & 包管理 — 5个练习全部通过 |
+| **最近学习日期** | 2026-08-13 |
+| **最近学习内容** | 0.5 异步基础 — 6个练习全部通过 |
 
 ---
 
@@ -29,7 +29,7 @@
 | 0.2 | ✅ | **数据结构** — list、dict、tuple、set | 2026-08-12 | 列表/字典推导式、切片、tuple解包、set交集、dict.get() 安全访问 |
 | 0.3 | ✅ | **类型提示 (Type Hints)** — `def foo(x: int) -> str` | 2026-08-12 | str \| None、list[int]、TypedDict、Callable、类型别名 |
 | 0.4 | ✅ | **虚拟环境 & 包管理** — venv、pip、pyproject.toml | 2026-08-12 | venv创建/激活、pip install、requirements.txt、pyproject.toml、sys.prefix检测 |
-| 0.5 | ⬜ | **异步基础** — async/await、asyncio | — | — |
+| 0.5 | ✅ | **异步基础** — async/await、asyncio | 2026-08-13 | async/await、gather 并发、create_task、asyncio.run 入口 vs await、gather(*arr) 解包 |
 | 0.6 | ⬜ | **Pydantic** — 数据校验与序列化 | — | — |
 
 > 🛠️ 阶段项目：用纯 Python（不用框架）写一个命令行 Todo 工具
@@ -156,6 +156,7 @@
 | 2026-08-12 | 0.2 数据结构 | 7个练习全部通过；踩坑：range(n) 从 0 开始忘写起始值、range(1, n) 不包含 n |
 | 2026-08-12 | 0.3 类型提示 | 7个练习全部通过；踩坑：浮点数精度问题，用 round() 保留两位小数；TypedDict vs 普通 dict 的区别 |
 | 2026-08-12 | 0.4 虚拟环境 & 包管理 | 5个练习全部通过；踩坑：Git Bash 下 source activate 不生效，改用 .venv/Scripts/python.exe 直接调用；and/or 逻辑写反；'None'（字符串）vs None |
+| 2026-08-13 | 0.5 异步基础 | 6个练习全部通过；踩坑：asyncio.run 在协程内报 RuntimeError 应改用 await；gather(arr) 要 * 展开；asyncio.sleep 单位是秒 |
 
 ---
 
