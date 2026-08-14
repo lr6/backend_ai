@@ -1,0 +1,8 @@
+[project]
+name = "todo-cli"
+version = "0.1.0"
+description = "命令行 Todo 工具（第零阶段阶段项目）"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.0",
+]
