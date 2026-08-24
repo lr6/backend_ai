@@ -11,11 +11,11 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第一阶段：API 设计思维转换 |
-| **当前学习项** | 4 自动文档 |
-| **总进度** | 9 / 32 |
+| **当前学习项** | 阶段项目 FastAPI Todo API |
+| **总进度** | 10 / 32 |
 | **已完成阶段** | 第零阶段 ✅ |
 | **最近学习日期** | 2026-08-24 |
-| **最近学习内容** | FastAPI 进阶完成（3 练习全通） |
+| **最近学习内容** | 自动文档完成（4 练习全通） |
 
 ---
 
@@ -47,7 +47,7 @@
 | 1 | ✅ | **FastAPI 入门** — 路由、请求体、查询参数、路径参数 | 2026-08-24 | 路由/路径参数/查询参数/请求体 + TestClient；踩坑：字段写成嵌套 class |
 | 2 | ✅ | **REST API 设计** — 资源建模、状态码、分页、错误处理 | 2026-08-24 | in 方向/return 位置/状态码 vs body/dict[] vs 对象./return vs raise |
 | 3 | ✅ | **FastAPI 进阶** — Depends、中间件、生命周期 | 2026-08-24 | Depends=Hook、中间件=拦截器、lifespan=yield 分界 |
-| 4 | ⬜ | **自动文档** — Swagger UI、OpenAPI 规范 | — | — |
+| 4 | ✅ | **自动文档** — Swagger UI、OpenAPI 规范 | 2026-08-24 | Swagger UI=Postman、openapi.json=契约、模型被引用才进文档 |
 
 > 🛠️ 阶段项目：用 FastAPI 写一个 Todo API（CRUD + 数据存内存）
 
@@ -162,6 +162,7 @@
 | 2026-08-24 | 1 FastAPI 入门 | 4 练习全通；踩坑：Pydantic 字段写成了嵌套 class 导致 AttributeError，字段应直接写在类体里 |
 | 2026-08-24 | 2 REST API 设计 | 4 练习全通；踩坑：in 方向搞反、return 写循环里、状态码塞 body（犯 2 次）、dict 用点访问、return 当 raise 用 |
 | 2026-08-24 | 3 FastAPI 进阶 | 3 练习一次全通无踩坑；Depends=依赖注入、中间件=拦截器、lifespan=yield 分界线 |
+| 2026-08-24 | 4 自动文档 | 4 练习全通；踩坑：参数缺逗号、title 拼成 titlle、模型没被路由引用不进文档 |
 
 ---
 
