@@ -15,7 +15,7 @@
 | **总进度** | 10 / 32 |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅ |
 | **最近学习日期** | 2026-08-24 |
-| **最近学习内容** | 阶段项目 FastAPI Todo API 完成（18 测试全通） |
+| **最近学习内容** | 5 PostgreSQL — SQL 基础 CRUD（6 练习全通） |
 
 ---
 
@@ -61,7 +61,7 @@
 
 | # | 状态 | 学习项 | 完成日期 | 笔记 |
 |---|------|--------|---------|------|
-| 5 | ⬜ | **PostgreSQL** — SQL 基础、表设计、JOIN、索引 | — | — |
+| 5 | 🔄 | **PostgreSQL** — SQL 基础、表设计、JOIN、索引 | — | SQL CRUD 完成；待表设计/JOIN/索引 |
 | 6 | ⬜ | **SQLAlchemy 2.0** — ORM 模型定义、Session、查询 | — | — |
 | 7 | ⬜ | **Alembic** — 数据库迁移 | — | — |
 | 8 | ⬜ | **Transactions** — ACID、事务隔离级别 | — | — |
@@ -164,6 +164,7 @@
 | 2026-08-24 | 3 FastAPI 进阶 | 3 练习一次全通无踩坑；Depends=依赖注入、中间件=拦截器、lifespan=yield 分界线 |
 | 2026-08-24 | 4 自动文档 | 4 练习全通；踩坑：参数缺逗号、title 拼成 titlle、模型没被路由引用不进文档 |
 | 2026-08-24 | 阶段项目 FastAPI Todo API | 18 测试全通；踩坑：JS 思维混入（splice/enumerate/三元）、id 塞进请求体模型、路径参数缺 :int |
+| 2026-08-24 | 5 PostgreSQL（SQL 基础） | 6 练习全通；踩坑：SQL 当 Python 代码写（没引号/没 conn.execute）、execuye/NSERT 拼写、return cur 忘 fetchall |
 
 ---
 
