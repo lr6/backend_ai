@@ -14,8 +14,8 @@
 | **当前学习项** | 5 PostgreSQL |
 | **总进度** | 10 / 32 |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅ |
-| **最近学习日期** | 2026-08-24 |
-| **最近学习内容** | 5 PostgreSQL — 表设计（约束/主键/外键，6 练习全通） |
+| **最近学习日期** | 2026-08-25 |
+| **最近学习内容** | 5 PostgreSQL — JOIN（多表查询，6 练习全通） |
 
 ---
 
@@ -61,7 +61,7 @@
 
 | # | 状态 | 学习项 | 完成日期 | 笔记 |
 |---|------|--------|---------|------|
-| 5 | 🔄 | **PostgreSQL** — SQL 基础、表设计、JOIN、索引 | — | SQL CRUD ✅、表设计 ✅；待 JOIN/索引 |
+| 5 | 🔄 | **PostgreSQL** — SQL 基础、表设计、JOIN、索引 | — | SQL CRUD ✅、表设计 ✅、JOIN ✅；待索引 |
 | 6 | ⬜ | **SQLAlchemy 2.0** — ORM 模型定义、Session、查询 | — | — |
 | 7 | ⬜ | **Alembic** — 数据库迁移 | — | — |
 | 8 | ⬜ | **Transactions** — ACID、事务隔离级别 | — | — |
@@ -166,6 +166,7 @@
 | 2026-08-24 | 阶段项目 FastAPI Todo API | 18 测试全通；踩坑：JS 思维混入（splice/enumerate/三元）、id 塞进请求体模型、路径参数缺 :int |
 | 2026-08-24 | 5 PostgreSQL（SQL 基础） | 6 练习全通；踩坑：SQL 当 Python 代码写（没引号/没 conn.execute）、execuye/NSERT 拼写、return cur 忘 fetchall |
 | 2026-08-24 | 5 PostgreSQL（表设计） | 6 练习全通；踩坑：INTERGE 拼写、INSERT 缺 RETURNING id、SELECT 缺 WHERE、fetchone()[0] vs fetchone()、sername/(username) 缺逗号 |
+| 2026-08-25 | 5 PostgreSQL（JOIN） | 6 练习全通；踩坑：`==` 当 SQL 相等、ORDER BY ASC 语序、fetchall 直接 return 忘列表推导、username 反复拼错、GROUP BY 规则（u.id 没进分组键）|
 
 ---
 
