@@ -11,11 +11,11 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第二阶段：数据持久化 |
-| **当前学习项** | 6 SQLAlchemy 2.0 |
-| **总进度** | 11 / 32 |
+| **当前学习项** | 7 Alembic |
+| **总进度** | 12 / 32 |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅ |
-| **最近学习日期** | 2026-08-25 |
-| **最近学习内容** | 5 PostgreSQL — 索引（Index，6 练习全通，学习项 5 完成）|
+| **最近学习日期** | 2026-08-27 |
+| **最近学习内容** | 6 SQLAlchemy 2.0（7 练习全通，学习项 6 完成）|
 
 ---
 
@@ -62,7 +62,7 @@
 | # | 状态 | 学习项 | 完成日期 | 笔记 |
 |---|------|--------|---------|------|
 | 5 | ✅ | **PostgreSQL** — SQL 基础、表设计、JOIN、索引 | 2026-08-25 | SQL CRUD ✅、表设计 ✅、JOIN ✅、索引 ✅ |
-| 6 | ⬜ | **SQLAlchemy 2.0** — ORM 模型定义、Session、查询 | — | — |
+| 6 | ✅ | **SQLAlchemy 2.0** — ORM 模型定义、Session、查询 | 2026-08-27 | Mapped/mapped_column=2.0、select构造≠执行、session.get特例、relationship两端镜像、属性名是契约、default兜非空 |
 | 7 | ⬜ | **Alembic** — 数据库迁移 | — | — |
 | 8 | ⬜ | **Transactions** — ACID、事务隔离级别 | — | — |
 | 9 | ⬜ | **Normalization** — 范式化与反范式化 | — | — |
@@ -168,6 +168,7 @@
 | 2026-08-24 | 5 PostgreSQL（表设计） | 6 练习全通；踩坑：INTERGE 拼写、INSERT 缺 RETURNING id、SELECT 缺 WHERE、fetchone()[0] vs fetchone()、sername/(username) 缺逗号 |
 | 2026-08-25 | 5 PostgreSQL（JOIN） | 6 练习全通；踩坑：`==` 当 SQL 相等、ORDER BY ASC 语序、fetchall 直接 return 忘列表推导、username 反复拼错、GROUP BY 规则（u.id 没进分组键）|
 | 2026-08-25 | 5 PostgreSQL（索引） | 6 练习全通，学习项 5 完成；踩坑：pg_index 拼错（应 pg_indexes）、CREATE 漏 INDEX、arr.join(',') 方向写反（JS 数组方法 vs Python 字符串方法）、fetchall 忘列表推导（第 3 次）|
+| 2026-08-27 | 6 SQLAlchemy 2.0 | 7 练习全通，学习项 6 完成；踩坑：select 构造≠执行（Select no attr / 反复）、count 缺 select_from+scalar、session.get 误 execute、commit(user) 传参、scalars() 挂 select、top 缺 .all()、done 非空需 default、relationship 只写一端忘 import、改名 rela_ 违反契约 |
 
 ---
 
