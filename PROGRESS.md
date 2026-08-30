@@ -11,11 +11,11 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第二阶段：数据持久化 |
-| **当前学习项** | 7 Alembic |
-| **总进度** | 12 / 32 |
+| **当前学习项** | 8 Transactions（⬜ 未开始）|
+| **总进度** | 13 / 32 |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅ |
-| **最近学习日期** | 2026-08-27 |
-| **最近学习内容** | 6 SQLAlchemy 2.0（7 练习全通，学习项 6 完成）|
+| **最近学习日期** | 2026-08-30 |
+| **最近学习内容** | 7 Alembic（从零迁移全流程通关，学习项 7 完成）|
 
 ---
 
@@ -63,7 +63,7 @@
 |---|------|--------|---------|------|
 | 5 | ✅ | **PostgreSQL** — SQL 基础、表设计、JOIN、索引 | 2026-08-25 | SQL CRUD ✅、表设计 ✅、JOIN ✅、索引 ✅ |
 | 6 | ✅ | **SQLAlchemy 2.0** — ORM 模型定义、Session、查询 | 2026-08-27 | Mapped/mapped_column=2.0、select构造≠执行、session.get特例、relationship两端镜像、属性名是契约、default兜非空 |
-| 7 | ⬜ | **Alembic** — 数据库迁移 | — | — |
+| 7 | ✅ | **Alembic** — 数据库迁移 | 2026-08-30 | 迁移=数据库的Git、autogenerate差异驱动、down_revision迁移链、downgrade回滚、alembic_version版本跟踪 |
 | 8 | ⬜ | **Transactions** — ACID、事务隔离级别 | — | — |
 | 9 | ⬜ | **Normalization** — 范式化与反范式化 | — | — |
 | 10 | ⬜ | **N+1 Problem** — selectinload / joinedload | — | — |
@@ -169,6 +169,8 @@
 | 2026-08-25 | 5 PostgreSQL（JOIN） | 6 练习全通；踩坑：`==` 当 SQL 相等、ORDER BY ASC 语序、fetchall 直接 return 忘列表推导、username 反复拼错、GROUP BY 规则（u.id 没进分组键）|
 | 2026-08-25 | 5 PostgreSQL（索引） | 6 练习全通，学习项 5 完成；踩坑：pg_index 拼错（应 pg_indexes）、CREATE 漏 INDEX、arr.join(',') 方向写反（JS 数组方法 vs Python 字符串方法）、fetchall 忘列表推导（第 3 次）|
 | 2026-08-27 | 6 SQLAlchemy 2.0 | 7 练习全通，学习项 6 完成；踩坑：select 构造≠执行（Select no attr / 反复）、count 缺 select_from+scalar、session.get 误 execute、commit(user) 传参、scalars() 挂 select、top 缺 .all()、done 非空需 default、relationship 只写一端忘 import、改名 rela_ 违反契约 |
+| 2026-08-28 | 7 Alembic（进行中）| 配置完成（alembic.ini URL + env.py target_metadata + models.py）；踩坑：Todo 漏 __tablename__（InvalidRequestError）、macOS venv 路径是 bin/ 不是 Scripts/、autogenerate 生成空迁移（数据库已有 create_all 建的表，差异驱动无差异）；中断点见 07Alembic/学习进度快照.md |
+| 2026-08-30 | 7 Alembic | 7 练习全通，学习项 7 完成；新建练习库 alembic_practice_db（不动 todo_orm_db），从零走通完整迁移：autogenerate 生成 create_table → upgrade → psql 验证 + alembic current；改模型加 due_date（Mapped[date | None] → nullable=True，sa.Date() 由类型注解自动推断）→ 第二个迁移（down_revision 成链）；downgrade -1 回滚验证列消失再恢复；history/current 看历史。踩坑核心：空迁移=无差异，autogenerate 是差异驱动 |
 
 ---
 
