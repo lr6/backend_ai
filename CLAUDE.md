@@ -59,6 +59,26 @@
 - 第五阶段 → `5架构设计/`
 - 第六阶段 → `6生产就绪/`
 
+## 学习项 Commit 规范
+
+每完成一个学习项并归档后，用 git 提交（本项目工作流：直接提交 `master` 并推送到 `origin`），commit message 遵循以下格式，**让看 commit 的人一眼就知道这一章学了什么**：
+
+1. **主题行**：`feat: {学习项序号} {主题} — {核心内容概览}`
+2. **正文**：空一行后写「本章核心内容」，逐条列出本章的关键知识点。
+
+示例：
+
+```
+feat: 8 Transactions — ACID、隔离级别、行锁 FOR UPDATE
+
+本章核心内容：
+- ACID：原子性 / 一致性 / 隔离性 / 持久性（COMMIT 全部生效，ROLLBACK 全部作废）
+- 并发三大问题：脏读、不可重复读、幻读
+- 隔离级别：READ COMMITTED（PG 默认）/ REPEATABLE READ（快照）/ SERIALIZABLE
+- 行锁：SELECT ... FOR UPDATE（锁持有到事务结束）
+- SQLAlchemy Session 底层就是事务（commit/rollback 同源）
+```
+
 ## 练习文件生成规范
 
 每个学习项的练习文件（`practice.py`）必须遵循统一格式：
