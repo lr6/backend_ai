@@ -11,11 +11,11 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第二阶段：数据持久化 |
-| **当前学习项** | 10 N+1 Problem（⬜ 未开始）|
-| **总进度** | 15 / 32 |
+| **当前学习项** | 11 JWT（⬜ 未开始）|
+| **总进度** | 16 / 32 |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅ |
-| **最近学习日期** | 2026-10-13 |
-| **最近学习内容** | 9 Normalization（5 练习全通 + 代码 Review，学习项 9 完成）|
+| **最近学习日期** | 2026-10-14 |
+| **最近学习内容** | 10 N+1 Problem（6 练习全通 + 代码 Review，学习项 10 完成）|
 
 ---
 
@@ -66,7 +66,7 @@
 | 7 | ✅ | **Alembic** — 数据库迁移 | 2026-08-30 | 迁移=数据库的Git、autogenerate差异驱动、down_revision迁移链、downgrade回滚、alembic_version版本跟踪 |
 | 8 | ✅ | **Transactions** — ACID、事务隔离级别 | 2026-08-30 | 原子性=commit/rollback 打包、隔离级别快照、FOR UPDATE 锁到事务结束 |
 | 9 | ✅ | **Normalization** — 范式化与反范式化 | 2026-10-13 | 1NF原子/2NF部分依赖(真子集,前提复合主键)/3NF传递依赖(A→B→C)；拆表=提取公共部分；**薄弱：嵌套结构「这一层是什么类型」两次栽跟头** |
-| 10 | ⬜ | **N+1 Problem** — selectinload / joinedload | — | — |
+| 10 | ✅ | **N+1 Problem** — selectinload / joinedload | 2026-10-14 | 懒加载 lazy="select"、N+1=1+N、selectinload 2条/joinedload 1条、`.unique()` 按主键去重、多对一用 joinedload、聚合 func.count 代第三条路 |
 
 > 🛠️ 阶段项目：Todo API 接入 PostgreSQL，SQLAlchemy + Alembic，加上用户表
 
@@ -172,6 +172,7 @@
 | 2026-08-28 | 7 Alembic（进行中）| 配置完成（alembic.ini URL + env.py target_metadata + models.py）；踩坑：Todo 漏 __tablename__（InvalidRequestError）、macOS venv 路径是 bin/ 不是 Scripts/、autogenerate 生成空迁移（数据库已有 create_all 建的表，差异驱动无差异）；中断点见 07Alembic/学习进度快照.md |
 | 2026-08-30 | 7 Alembic | 7 练习全通，学习项 7 完成；新建练习库 alembic_practice_db（不动 todo_orm_db），从零走通完整迁移：autogenerate 生成 create_table → upgrade → psql 验证 + alembic current；改模型加 due_date（Mapped[date | None] → nullable=True，sa.Date() 由类型注解自动推断）→ 第二个迁移（down_revision 成链）；downgrade -1 回滚验证列消失再恢复；history/current 看历史。踩坑核心：空迁移=无差异，autogenerate 是差异驱动 |
 | 2026-08-30 | 8 Transactions | 7 练习全通，学习项 8 完成；新建练习库 transaction_practice_db。核心概念：ACID、READ COMMITTED vs REPEATABLE READ 快照、FOR UPDATE 行锁（锁到事务结束）。踩坑：return 当 raise（第 2 次）、execcute/execcute 拼写（第 N 次）、SQL 字符串缺引号/表名拼错 account、字符串拼接缺空格、**中文输入法弯引号 ‘ ’ 导致 unterminated quoted string**、VALUES 里逗号被引号包住、conn_b 不 commit 读不到修改、自己连接读自己未提交的改动不是脏读（要用另一个连接）、FOR UPDATE 后立刻 commit 锁提前释放 |
+| 2026-10-14 | 10 N+1 Problem | 6 练习全通 + 代码 Review，学习项 10 完成；新建练习库 n1_practice_db。核心概念：懒加载 lazy="select"（访问 .todos 那一刻才发 SQL）、N+1=1+N、selectinload 2条（IN 批量）/joinedload 1条（LEFT JOIN）、`.unique()` 按主键去重（JOIN 后 9 行→3 对象）、多对一用 joinedload 不用 unique、聚合 func.count+group_by 是第三条路（零对象构造）。**探底两题全错**：以为 user.todos 不发 SQL、以为 10 用户是 2 条（实为 11 条）。踩坑：`session.get(User)` 忘传主键（学习项 6 的 get 特例忘了，用户明说"不记得了"）、`kk = []` 装 dict（学习项 9 同款 shape 错）、不会列表推导式写 `[t.title for t in u.todos]`、漏 `.all()` **3 次**（练习3/练习5/学习项6 的 top）、练习5 一行三错（SyntaxError 元组缺括号 + AttributeError Todo 无 name + `t.user` 对象没取 .name）、只 print 不 return 导致"实际 None"、字典推导式 `{name: cnt for rows, cnt in rows}` 名字对不上 NameError、全角 `！` 命令跑不起来。Review 三点：`.all()` 习惯、`kk`→`result` 命名、长行拆「构造/执行」两步 |
 | 2026-10-13 | 9 Normalization | 5 练习全通 + 代码 Review，学习项 9 完成（9/7 开了头，隔 5 周续上）。核心概念：1NF 原子、2NF 部分依赖（真子集，前提是复合主键）、3NF 传递依赖（A→B→C 且 B 非主键）、复合主键=唯一标识一行的最小列组合。**最大问题：嵌套结构「拿错层」栽了两次** —— 练习3 `for d in deps` 把 key 当决定列；练习1 `rows.items()` 把 list 当 dict，且同一行连卡 3 次（三次都只改变量名没改方法）。其他踩坑：`return d` 返回字符串非 list、`[list(key)]` 多套一层、`key=[]` 配 `.add()`、Review 三点（命名 key / 循环内 set(pk) / 该用 .items()）|
 
 ---
