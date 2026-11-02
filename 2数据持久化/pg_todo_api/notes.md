@@ -340,3 +340,131 @@ psql -d todo_api_db -c "\d todos"
 2. `database.py` 与 `alembic.ini` 各存一份数据库 URL → 可统一为单一真相来源
 3. 测试目前写在 `if __name__ == "__main__"` 里 → 后续学习项 17/18 改成 pytest
 4. 尚未加分页（学习项 2 的分页设计）；`GET /todos` 数据量大时需要 `limit/offset`
+
+---
+
+## 八、补充：从项目文件理解后端分层（2026-11-02 讨论）
+
+### 1. 四个文件的职责
+
+| 文件 | 职责 | 层次 |
+|------|------|------|
+| `main.py` | 定义路由、处理请求、返回响应；创建 `FastAPI` 实例 | HTTP 层 / 入口 |
+| `schemas.py` | 校验请求数据、决定响应字段 | API 契约层（DTO）|
+| `models.py` | 定义数据库表、列、外键、关系 | 持久化模型层（Entity）|
+| `database.py` | 连接池、Session 工厂、`get_db` | 基础设施层 |
+
+### 2. 依赖方向
+
+```
+main.py ──────→ schemas.py
+   │
+   ├──────────→ models.py ──────→ database.py
+   │
+   └──────────→ database.py（get_db）
+```
+
+- `database.py` 不 import 任何项目模块（避免循环引用）
+- `models.py` 只依赖 `database.Base`
+- `schemas.py` 不依赖项目文件
+- `main.py` 依赖上面三个
+
+### 3. 入口文件
+
+**`main.py` 是 Web 应用入口**：
+
+```bash
+uvicorn main:app --reload
+#        ↑    ↑
+#      模块   FastAPI 实例变量
+```
+
+uvicorn 会 import `main`、执行 `app = FastAPI(...)`、注册路由，然后监听端口。
+
+其他文件不是入口：
+
+- `database.py` / `models.py` / `schemas.py` 都是被 import 的模块
+- 各文件末尾的 `if __name__ == "__main__":` 是学习用的测试块，不是应用入口
+- Alembic 是独立的 CLI 入口：`alembic.ini` → `alembic/env.py`
+
+### 4. Controller（控制器）
+
+`main.py` 里**带路由装饰器的函数**才是 controller：
+
+```python
+@app.post("/todos")
+def create_todo(payload, db):
+    ...
+```
+
+同一个文件里的其他代码不算 controller：
+
+| 代码 | 是什么 |
+|------|--------|
+| `app = FastAPI(...)` | 应用实例 / 组装 |
+| `import models, schemas` | 依赖声明 |
+| `@app.post(...)` | 路由注册 |
+| `def create_todo(...)` | controller |
+| `if __name__ == "__main__":` | 测试块 |
+
+所以现阶段 `main.py` 同时承担「应用组装」和「controller 层」两个角色，小项目这样没问题。
+
+### 5. 除 controller 外的常见分层
+
+| 层 / 角色 | 职责 | 当前项目状态 |
+|-----------|------|-------------|
+| Router | 把一组路由挂到 app | 未拆，直接 `@app.get` |
+| Controller | 接请求 → 调业务 → 返回响应 | `main.py` 路由函数 |
+| Service | 业务逻辑、组合多个操作 | 未拆，目前写在 controller |
+| Repository / DAO | 只负责数据库读写 | 未拆，controller 直接 `db.get` / `select` |
+| Model / Entity | 数据库表结构 | `models.py` |
+| Schema / DTO | 请求/响应结构 + 校验 | `schemas.py` |
+| Middleware | 请求前后统一处理（日志、鉴权、CORS）| 未使用 |
+| Dependency | 请求级可复用依赖（Session、当前用户）| `get_db` |
+| Config / Settings | 环境变量、数据库地址、密钥 | 散落在 `database.py` / `alembic.ini` |
+| Migration | 数据库结构变更 | `alembic/` |
+| Infrastructure | 连接池、缓存、队列、外部客户端 | `database.py` 的 `engine` |
+
+### 6. MVC vs 分层架构
+
+- **MVC**：Model / View / Controller，关注"数据、展示、请求处理"
+- **分层架构**：Controller → Service → Repository → DB，关注"业务逻辑与数据库访问"
+
+后端 Web 项目通常混用两个概念，但更常见的是按层拆。
+
+项目变大后的典型结构：
+
+```
+app/
+├── main.py              # 只创建 app、挂载 router
+├── routers/             # Router 层
+│   ├── users.py
+│   └── todos.py         # Controller 函数
+├── services/            # Service 层
+├── repositories/        # Repository 层
+├── models.py            # Model / Entity
+├── schemas.py           # Schema / DTO
+├── database.py          # 基础设施
+├── dependencies.py      # get_db、get_current_user
+└── config.py            # Settings
+```
+
+> 现阶段不拆：项目规模小，controller 直接操作 ORM 合理。等 controller 里塞了注册、登录、token 校验、缓存后再拆。
+
+### 7. 这些分层在 roadmap 里的覆盖情况
+
+| 概念 | 后续哪里会碰到 |
+|------|---------------|
+| Model / ORM | 学习项 6 ✅ |
+| Schema / DTO | 学习项 0.6 ✅ + 本项目 |
+| Migration | 学习项 7 ✅ |
+| Dependency | 学习项 3 ✅、12 OAuth2 |
+| Middleware | 学习项 3、14 CORS、27 日志、30 限流 |
+| Config / Settings | 学习项 20 CI/CD、21 Docker（无专门项）|
+| Infrastructure | 16 Redis、19 Nginx、21 Docker、22 Celery、24 索引、25 MongoDB |
+| Router 拆分 | 第三阶段认证项目、第四阶段工程化项目（无专门项）|
+| Service 层 | 注册/登录、缓存逻辑（无专门项）|
+| Repository 层 | 学习项 17/18 测试与 mock 数据库（无专门项）|
+| 架构取舍 | 学习项 23 单体 vs 微服务、32 System Design |
+
+结论：约 6~7 成有正式学习项，3 成会在阶段项目里自然遇到。分层重构不必现在做，等第四阶段工程化项目开始时再做一次「`main.py` 拆 routers / services / repositories」的练习。
