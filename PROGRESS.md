@@ -11,11 +11,11 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第二阶段：数据持久化 |
-| **当前学习项** | 11 JWT（⬜ 未开始）|
+| **当前学习项** | 11 JWT（⬜ 未开始 · 第三阶段：认证与安全）|
 | **总进度** | 16 / 32 |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅ |
-| **最近学习日期** | 2026-10-14 |
-| **最近学习内容** | 10 N+1 Problem（6 练习全通 + 代码 Review，学习项 10 完成）|
+| **最近学习日期** | 2026-11-02 |
+| **最近学习内容** | 阶段项目 PostgreSQL Todo API 完成（Task 1-4 + uvicorn/curl 全链路验证）|
 
 ---
 
@@ -72,7 +72,7 @@
 
 | 阶段项目 | 状态 | 完成日期 |
 |----------|------|---------|
-| PostgreSQL Todo API | ⬜ | — |
+| PostgreSQL Todo API | ✅ | 2026-11-02（Task 1 database.py、Task 2 models.py、Task 3 Alembic 建表、Task 4 schemas + CRUD + uvicorn/curl 验证）|
 
 ---
 
@@ -173,6 +173,9 @@
 | 2026-08-30 | 7 Alembic | 7 练习全通，学习项 7 完成；新建练习库 alembic_practice_db（不动 todo_orm_db），从零走通完整迁移：autogenerate 生成 create_table → upgrade → psql 验证 + alembic current；改模型加 due_date（Mapped[date | None] → nullable=True，sa.Date() 由类型注解自动推断）→ 第二个迁移（down_revision 成链）；downgrade -1 回滚验证列消失再恢复；history/current 看历史。踩坑核心：空迁移=无差异，autogenerate 是差异驱动 |
 | 2026-08-30 | 8 Transactions | 7 练习全通，学习项 8 完成；新建练习库 transaction_practice_db。核心概念：ACID、READ COMMITTED vs REPEATABLE READ 快照、FOR UPDATE 行锁（锁到事务结束）。踩坑：return 当 raise（第 2 次）、execcute/execcute 拼写（第 N 次）、SQL 字符串缺引号/表名拼错 account、字符串拼接缺空格、**中文输入法弯引号 ‘ ’ 导致 unterminated quoted string**、VALUES 里逗号被引号包住、conn_b 不 commit 读不到修改、自己连接读自己未提交的改动不是脏读（要用另一个连接）、FOR UPDATE 后立刻 commit 锁提前释放 |
 | 2026-10-14 | 10 N+1 Problem | 6 练习全通 + 代码 Review，学习项 10 完成；新建练习库 n1_practice_db。核心概念：懒加载 lazy="select"（访问 .todos 那一刻才发 SQL）、N+1=1+N、selectinload 2条（IN 批量）/joinedload 1条（LEFT JOIN）、`.unique()` 按主键去重（JOIN 后 9 行→3 对象）、多对一用 joinedload 不用 unique、聚合 func.count+group_by 是第三条路（零对象构造）。**探底两题全错**：以为 user.todos 不发 SQL、以为 10 用户是 2 条（实为 11 条）。踩坑：`session.get(User)` 忘传主键（学习项 6 的 get 特例忘了，用户明说"不记得了"）、`kk = []` 装 dict（学习项 9 同款 shape 错）、不会列表推导式写 `[t.title for t in u.todos]`、漏 `.all()` **3 次**（练习3/练习5/学习项6 的 top）、练习5 一行三错（SyntaxError 元组缺括号 + AttributeError Todo 无 name + `t.user` 对象没取 .name）、只 print 不 return 导致"实际 None"、字典推导式 `{name: cnt for rows, cnt in rows}` 名字对不上 NameError、全角 `！` 命令跑不起来。Review 三点：`.all()` 习惯、`kk`→`result` 命名、长行拆「构造/执行」两步 |
+| 2026-10-20 | 阶段项目 PostgreSQL Todo API（Task 1）| 续上 10-15 开的头（database.py 三个 TODO 全空）。本轮目标：engine / SessionLocal / get_db 写通，`python database.py` 测试全绿 |
+| 2026-11-02 | 阶段项目 PostgreSQL Todo API（Task 1 复跑 + Task 2 + Task 3）| Task 1 复跑测试全绿（engine / SessionLocal / get_db + 连接归还）；Task 2 models.py 测试全绿。核心概念：`mapped_column` 管列、`relationship` 管属性，两者平级**不能嵌套**；`back_populates` 填**对面类里的属性名**（User.todos→"user"，Todo.user→"todos"）；`ForeignKey("users.id")` 填**表名.列名**（数据库世界），类名 User 是 Python 世界。踩坑：`mapped_column(relationship(...))` 套娃**连踩 2 次**（先 Todo 后 User，改了这边坏那边），最后直接给出正确代码；探底问 back_populates 时答"不知道"，提示 owner 例子才猜中；`ForeignKey` 里 users 为何不是 User 一度不理解。Task 3 Alembic：alembic init → alembic.ini 填 URL → env.py 里 `from database import Base` + `import models`（关键：不 import 模型 metadata 为空）+ `target_metadata = Base.metadata` → autogenerate 检测到 users/todos 两张表 → upgrade head → psql 验证 3 张表（含 alembic_version）。验证「差异驱动」：不改模型再 autogenerate 得到空迁移（此 test 迁移已删）。`Detected sequence ... assuming SERIAL and omitting` = PG 自增序列噪音，ONLY `Detected added ...` 才是有差异。Task 4 schemas + CRUD：三层模型（ORM/请求/响应）、`from_attributes`、`Depends(get_db)`、`add/commit/refresh`、`db.get`、`select + where + scalars`、`model_dump(exclude_unset=True)`、404/201/204。踩坑：`db.get(models.User, user_id)` 用了不存在的变量（被测试块全局 user_id 掩盖成 FK IntegrityError，应用 `payload.user_id`）、`db.refresh()` 忘传对象、列表查询无条件 where（`== None` 编译成 IS NULL → 空列表，应 `if x is not None`）、`if done:` 把 False 当没传、`Field()` 空壳/漏 min_length、`if user in None:` TypeError。测试全绿后做了代码 Review + 清理 TODO/行尾空格；uvicorn 启动 + curl 走通 10 步全流程（含 404/204/二次删除/exclude_unset 验证），数据已清理 |
+
 | 2026-10-13 | 9 Normalization | 5 练习全通 + 代码 Review，学习项 9 完成（9/7 开了头，隔 5 周续上）。核心概念：1NF 原子、2NF 部分依赖（真子集，前提是复合主键）、3NF 传递依赖（A→B→C 且 B 非主键）、复合主键=唯一标识一行的最小列组合。**最大问题：嵌套结构「拿错层」栽了两次** —— 练习3 `for d in deps` 把 key 当决定列；练习1 `rows.items()` 把 list 当 dict，且同一行连卡 3 次（三次都只改变量名没改方法）。其他踩坑：`return d` 返回字符串非 list、`[list(key)]` 多套一层、`key=[]` 配 `.add()`、Review 三点（命名 key / 循环内 set(pk) / 该用 .items()）|
 
 ---
