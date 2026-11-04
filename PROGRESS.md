@@ -11,11 +11,11 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第三阶段：认证与安全 |
-| **当前学习项** | 11 JWT（⬜ 未开始 · 第三阶段：认证与安全）|
-| **总进度** | 16 / 32 |
+| **当前学习项** | 12 FastAPI OAuth2（⬜ 未开始 · 第三阶段：认证与安全）|
+| **总进度** | 17 / 32 |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅、第二阶段 ✅ |
-| **最近学习日期** | 2026-11-02 |
-| **最近学习内容** | 阶段项目 PostgreSQL Todo API 完成（Task 1-4 + uvicorn/curl 全链路验证）|
+| **最近学习日期** | 2026-11-04 |
+| **最近学习内容** | 11 JWT 完成（Session vs JWT、签名原理、Access/Refresh 双 token、吊销）|
 
 ---
 
@@ -80,7 +80,7 @@
 
 | # | 状态 | 学习项 | 完成日期 | 笔记 |
 |---|------|--------|---------|------|
-| 11 | ⬜ | **JWT** — Access Token / Refresh Token、python-jose | — | — |
+| 11 | ✅ | **JWT** — Access Token / Refresh Token、python-jose | 2026-11-04 | Session 有状态 vs JWT 无状态、Header.Payload.Signature、payload 明文非加密、exp 时间点、双 token、httpOnly cookie、store 吊销 |
 | 12 | ⬜ | **FastAPI OAuth2** — 依赖注入整合 | — | — |
 | 13 | ⬜ | **passlib + bcrypt** — 密码哈希、加盐 | — | — |
 | 14 | ⬜ | **CORS** — 跨域原理、CORSMiddleware | — | — |
@@ -177,6 +177,7 @@
 | 2026-11-02 | 阶段项目 PostgreSQL Todo API（Task 1 复跑 + Task 2 + Task 3）| Task 1 复跑测试全绿（engine / SessionLocal / get_db + 连接归还）；Task 2 models.py 测试全绿。核心概念：`mapped_column` 管列、`relationship` 管属性，两者平级**不能嵌套**；`back_populates` 填**对面类里的属性名**（User.todos→"user"，Todo.user→"todos"）；`ForeignKey("users.id")` 填**表名.列名**（数据库世界），类名 User 是 Python 世界。踩坑：`mapped_column(relationship(...))` 套娃**连踩 2 次**（先 Todo 后 User，改了这边坏那边），最后直接给出正确代码；探底问 back_populates 时答"不知道"，提示 owner 例子才猜中；`ForeignKey` 里 users 为何不是 User 一度不理解。Task 3 Alembic：alembic init → alembic.ini 填 URL → env.py 里 `from database import Base` + `import models`（关键：不 import 模型 metadata 为空）+ `target_metadata = Base.metadata` → autogenerate 检测到 users/todos 两张表 → upgrade head → psql 验证 3 张表（含 alembic_version）。验证「差异驱动」：不改模型再 autogenerate 得到空迁移（此 test 迁移已删）。`Detected sequence ... assuming SERIAL and omitting` = PG 自增序列噪音，ONLY `Detected added ...` 才是有差异。Task 4 schemas + CRUD：三层模型（ORM/请求/响应）、`from_attributes`、`Depends(get_db)`、`add/commit/refresh`、`db.get`、`select + where + scalars`、`model_dump(exclude_unset=True)`、404/201/204。踩坑：`db.get(models.User, user_id)` 用了不存在的变量（被测试块全局 user_id 掩盖成 FK IntegrityError，应用 `payload.user_id`）、`db.refresh()` 忘传对象、列表查询无条件 where（`== None` 编译成 IS NULL → 空列表，应 `if x is not None`）、`if done:` 把 False 当没传、`Field()` 空壳/漏 min_length、`if user in None:` TypeError。测试全绿后做了代码 Review + 清理 TODO/行尾空格；uvicorn 启动 + curl 走通 10 步全流程（含 404/204/二次删除/exclude_unset 验证），数据已清理 |
 
 | 2026-10-13 | 9 Normalization | 5 练习全通 + 代码 Review，学习项 9 完成（9/7 开了头，隔 5 周续上）。核心概念：1NF 原子、2NF 部分依赖（真子集，前提是复合主键）、3NF 传递依赖（A→B→C 且 B 非主键）、复合主键=唯一标识一行的最小列组合。**最大问题：嵌套结构「拿错层」栽了两次** —— 练习3 `for d in deps` 把 key 当决定列；练习1 `rows.items()` 把 list 当 dict，且同一行连卡 3 次（三次都只改变量名没改方法）。其他踩坑：`return d` 返回字符串非 list、`[list(key)]` 多套一层、`key=[]` 配 `.add()`、Review 三点（命名 key / 循环内 set(pk) / 该用 .items()）|
+| 2026-11-04 | 11 JWT | 6 练习全通 + 代码 Review，学习项 11 完成。核心概念：Session 有状态 vs JWT 无状态、Header.Payload.Signature（payload 只是 Base64 明文）、HMAC 签名防篡改（安全押在密钥上）、exp 是时间点不是分钟数、Access(15min)/Refresh(30天) 双 token、httpOnly cookie（JS 读不到，浏览器自动带）、服务端 store 存 refresh 实现吊销。探底：token 存 cookie + axios 拦截器答对；Session vs JWT 不知道；改 payload 是否生效答错「会的」；服务器重启不掉线、logout 后旧 access 仍可用答对。踩坑：`exp` 传分钟数导致 1970 年过期、`algorithm` vs `algorithms`、`datetime.now(timezone)` 传类、`timedelta(day=)` 单数、`type` 写成 `"refresh_token"`、dict 重复 key `access_token` 静默覆盖、`payload.type` dict 点访问（第 2 次）、`return JWTError` 当 raise（第 2 次）、`create_refresh_token(uid, "refresh")` 把 role 传成字面量（测试未覆盖 role，用户主动质疑才发现）。Review：长行拆 payload、错误消息具体化、引号统一 |
 
 ---
 
