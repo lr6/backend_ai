@@ -10,12 +10,12 @@
 
 | 项目 | 值 |
 |------|-----|
-| **当前阶段** | 第三阶段：认证与安全 |
-| **当前学习项** | 阶段项目：认证 Todo API（⬜ 未开始 · 第三阶段：认证与安全）|
+| **当前阶段** | 第四阶段：工程化 |
+| **当前学习项** | 16 Redis 缓存（⬜ 未开始 · 第四阶段：工程化）|
 | **总进度** | 21 / 32 |
-| **已完成阶段** | 第零阶段 ✅、第一阶段 ✅、第二阶段 ✅ |
+| **已完成阶段** | 第零阶段 ✅、第一阶段 ✅、第二阶段 ✅、第三阶段 ✅ |
 | **最近学习日期** | 2026-11-11 |
-| **最近学习内容** | 15 HTTPS / SSL/TLS 完成（机密性、完整性、证书验证、TLS 握手、会话密钥、TLS 终止）|
+| **最近学习内容** | 第三阶段项目「认证 Todo API」完成（bcrypt 注册/登录、JWT 双 token、受保护路由、资源所有权）|
 
 ---
 
@@ -90,7 +90,7 @@
 
 | 阶段项目 | 状态 | 完成日期 |
 |----------|------|---------|
-| 认证 Todo API | ⬜ | — |
+| 认证 Todo API | ✅ | 2026-11-11（Task 1 数据层 + Alembic、Task 2 security.py、Task 3 schemas、Task 4 认证+受保护路由、Task 5 uvicorn/curl 端到端）|
 
 ---
 
@@ -182,6 +182,7 @@
 | 2026-11-09 | 12 FastAPI OAuth2 | 5 练习全通 + Review，学习项 12 完成。探底：token 放哪答「payload」（混淆 token 内部结构与请求位置）、公共逻辑机制答「中间件」（方向对机制错）、为何不放 query 答「不知道」。核心：`Authorization: Bearer`、Bearer 协议、URL 是日志/Referer 泄露点、Depends 链 vs 中间件（中间件跑在路由匹配前 + 无法注入 user + 不参与 Swagger）、`OAuth2PasswordRequestForm` 收 form 不收 JSON（前端要 URLSearchParams）、响应 `access_token`+`token_type`、401 必带 `WWW-Authenticate: Bearer`、401 vs 403、三种失败统一提示、双向 type 校验（access 防 refresh 冒充、refresh 防 access 换取）、router 级依赖默认安全、`tokenUrl` 给 Swagger。踩坑：`db.get(username)` 用错 key（key 是 id）、漏密码校验、**dict 点访问 4 次**（`u.username`/`user.id`/`current_user.id`/`user["user_id"]`）、练习4 只做了路由级依赖 + 新建 APIRouter 未赋值 + `include_router(router, APIRouter)`、练习5 复制练习2 后 `body` 未取 `.refresh_token`、type 仍写 access、用 claim 判用户存在、`create_refresh_token` 当 access、漏传 role（测试全绿但 admin 会被降级）。环境：缺 `python-multipart` 报 RuntimeError，已安装。Review：提取 `auth_error()` 函数、去 else、`from None`、缩进/残留 TODO。附带讲了 Python dict `.` vs `[]` 与 JS Map/普通对象命名空间的区别 |
 | 2026-11-11 | 14 CORS | 5 练习全通，学习项 14 完成。核心概念：同源策略=浏览器拦（请求照发响应照回，浏览器拦 JS 读）、Origin=协议+域名+端口、简单请求=传统表单能发的（GET/HEAD/POST+三种 content-type）→ 直接发、非简单请求（JSON/PUT/DELETE/Authorization）→ 先 OPTIONS 预检、allow_methods/allow_headers 默认只有 GET/空必须显式写、allow_credentials=True 时 allow_origins 不能 *（evil.com 可带 cookie 冒充）、allow_origin_regex 正则放行动态端口。探底两题答对（application/json 触发预检、credentials 危险点）。踩坑：练习1 三 bug——`method in ["get"]` 大小写敏感（"GET" 不命中）、`headers in [安全头]` 是"整个列表在不在"而非"每个元素"、`content_type or ...` 短路放行 json 且 None 被误拦；练习2 忘 `return app`（**忘记 return 第 N 次**，AttributeError NoneType）；练习5 参数名 `allow_origins` vs `allow_origin_regex` 搞混 + raw 字符串 `\\d` 双反斜杠（docstring 里 `\\` 渲染才成 `\`）。**主动提问**：「not in 后面一会 () 一会 {}」→ tuple vs set vs list 概念模糊，空 `{}` 是 dict 不是 set |
 | 2026-11-11 | 15 HTTPS / SSL/TLS | 3 个练习全通，学习项 15 完成。核心：HTTPS 在 TLS 上承载 HTTP；TLS 提供机密性、完整性、服务器身份认证；证书关联域名和公钥，客户端检查主机名、有效期和 CA 信任链，并验证服务器持有对应私钥；握手协商连接密钥，后续用对称会话密钥保护应用数据；证书有效不代表业务可信；FastAPI 部署常由反向代理/负载均衡器终止 TLS。探底起初以为 HTTPS 只加密、证书用途和完整性校验不清楚；讲解后能区分证书/非对称密码学与会话密钥/对称加密，并判断过期证书和不受信任链应拒绝。练习坑：写 `!expired`（JS 写法）触发 Python SyntaxError，改为 `not`；先用单一复合条件，所有失败都落到 `hostname_mismatch`，后改成按验证优先级逐项提前返回；练习3握手列表一次写对。Review：嵌套条件改为 guard clauses，长列表拆行。补充准确性：练习握手顺序是概念模型，不是 TLS 1.3 精确消息序列；TLS 1.3 在 ClientHello/ServerHello 的 key_share 阶段已进行密钥协商，证书签名（CertificateVerify）与 Finished 用于认证和确认握手/密钥，之后才进入应用数据保护。 |
+| 2026-11-11 | 阶段项目 · 认证 Todo API | 5 个 Task 全部完成，第三阶段收尾 ✅。新建 `auth_todo_db` + 项目目录。核心：User 加 `password_hash`（String(255) 为算法迁移留余量）；security.py 拆成密码/JWT 两组纯函数；TokenPair + RefreshRequest；`TodoCreate` 删掉 `user_id`（IDOR 防御，身份从 token 来）；`OAuth2PasswordBearer` + `get_current_user` 依赖链；单条操作 SQL 同时带 `id` 和 `user_id`，越权统一 404；PATCH 用 `exclude_unset` + `setattr` + commit（Unit of Work）。35 条 TestClient 测试全绿 + uvicorn/curl 端到端 8 步验证（伪造 user_id 被忽略、refresh 冒充 access 401、401 带 WWW-Authenticate）。探底答对「token 放请求头」「user_id 不让客户端传」。踩坑：`String(100)`、`arget_metadata`、`"refesh"`、`decode_token` 四连错（不查 type=安全漏洞 / `raise ("401")` 字符串 / `except JWTError` 把过期异常降级 / algorithms 传字符串）、`Field(1, max_length=120)` 把 default 当 min_length、注册路由 select 构造当执行 + 逻辑反 + `payload["password"]` + `db.add(dict)` + `db.refresh()` 缺参 + `uaername`、登录条件三次才对（`user is not None or verify` → 缺 `not`）、PATCH 没用 payload 导致 200 但没更新。主动提问：String(255) 为何不是 60、encode 的 algorithm 为何是字符串、函数怎么区分 token 无效/过期（答：异常类型）、raise 的文本能否改、`db.refresh(user)` 为何带参数、`not` 是否等于 JS `!`、为什么 `schemas.TokenPair(...)`、refresh token 为何带 user_id。笔记见 `3认证安全/阶段项目-认证TodoAPI/notes.md`。 |
 
 ---
 
