@@ -11,11 +11,11 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第三阶段：认证与安全 |
-| **当前学习项** | 14 CORS（⬜ 未开始 · 第三阶段：认证与安全）|
-| **总进度** | 19 / 32 |
+| **当前学习项** | 15 HTTPS / SSL/TLS（⬜ 未开始 · 第三阶段：认证与安全）|
+| **总进度** | 20 / 32 |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅、第二阶段 ✅ |
-| **最近学习日期** | 2026-11-09 |
-| **最近学习内容** | 12 FastAPI OAuth2 完成（OAuth2PasswordBearer、get_current_user、router 级依赖、双向 type 校验）|
+| **最近学习日期** | 2026-11-11 |
+| **最近学习内容** | 14 CORS 完成（同源策略、简单请求 vs 预检、CORSMiddleware、credentials 不能 *、allow_origin_regex）|
 
 ---
 
@@ -83,7 +83,7 @@
 | 11 | ✅ | **JWT** — Access Token / Refresh Token、python-jose | 2026-11-04 | Session 有状态 vs JWT 无状态、Header.Payload.Signature、payload 明文非加密、exp 时间点、双 token、httpOnly cookie、store 吊销 |
 | 12 | ✅ | **FastAPI OAuth2** — 依赖注入整合 | 2026-11-09 | Bearer header、form vs JSON、Depends 链、get_current_user、401+WWW-Authenticate、双向 type 校验、router 级依赖 |
 | 13 | ✅ | **passlib + bcrypt** — 密码哈希、加盐 | 2026-11-05 | 哈希≠加密（单向/指纹）、彩虹表、随机盐（不保密、防预计算）、cost=2^n 故意慢、`$2b$12$22位盐+31位摘要`、hash/verify/needs_update、bcrypt 与 passlib 版本锁定 |
-| 14 | ⬜ | **CORS** — 跨域原理、CORSMiddleware | — | — |
+| 14 | ✅ | **CORS** — 跨域原理、CORSMiddleware | 2026-11-11 | 同源策略=浏览器拦、Origin=协议+域名+端口、简单请求=表单能发的(预检=OPTIONS)、allow_methods/headers 必须显式写、credentials 不能 *、allow_origin_regex 正则放行动态端口、tuple vs set vs list |
 | 15 | ⬜ | **HTTPS / SSL/TLS** — 证书、加密原理 | — | — |
 
 > 🛠️ 阶段项目：Todo API 加上注册/登录/JWT 鉴权
@@ -180,6 +180,7 @@
 | 2026-11-04 | 11 JWT | 6 练习全通 + 代码 Review，学习项 11 完成。核心概念：Session 有状态 vs JWT 无状态、Header.Payload.Signature（payload 只是 Base64 明文）、HMAC 签名防篡改（安全押在密钥上）、exp 是时间点不是分钟数、Access(15min)/Refresh(30天) 双 token、httpOnly cookie（JS 读不到，浏览器自动带）、服务端 store 存 refresh 实现吊销。探底：token 存 cookie + axios 拦截器答对；Session vs JWT 不知道；改 payload 是否生效答错「会的」；服务器重启不掉线、logout 后旧 access 仍可用答对。踩坑：`exp` 传分钟数导致 1970 年过期、`algorithm` vs `algorithms`、`datetime.now(timezone)` 传类、`timedelta(day=)` 单数、`type` 写成 `"refresh_token"`、dict 重复 key `access_token` 静默覆盖、`payload.type` dict 点访问（第 2 次）、`return JWTError` 当 raise（第 2 次）、`create_refresh_token(uid, "refresh")` 把 role 传成字面量（测试未覆盖 role，用户主动质疑才发现）。Review：长行拆 payload、错误消息具体化、引号统一 |
 | 2026-11-05 | 13 passlib + bcrypt | 6 练习全通 + Review，学习项 13 完成（用户要求先 13 后 12，因 12 登录要用密码验证）。探底两题全答「不知道」→ 直接讲。核心：哈希≠加密（指纹类比、单向）、彩虹表/离线爆破、盐随机唯一且不保密（防预计算、不防拖库）、cost=2^n 故意慢、哈希串 `$2b$12$22位盐+31位摘要`、verify 从哈希取盐重算、needs_update 支持 cost/算法迁移、依赖锁版本（passlib 1.7.4 与 bcrypt 5 不兼容 → 固定 bcrypt 4.0.1）。踩坑：练习3 `.slice()` JS 写法、`split("$")` 开头空串导致下标整体错位、dict 重复 `version` 静默覆盖、cost 未 int；练习6 `verify` 返回值丢失 → 错误密码返回 True（测试全绿掩盖，复现后修复）、裸 `except:`；接口的 `verify` 检查题全答对。Claude 自己的错误：测试期望值盐/摘要长度手写成 24/29（应为 22/31），已用真实数据修正。练习 5 手写解析→讲解后改用 `needs_update` |
 | 2026-11-09 | 12 FastAPI OAuth2 | 5 练习全通 + Review，学习项 12 完成。探底：token 放哪答「payload」（混淆 token 内部结构与请求位置）、公共逻辑机制答「中间件」（方向对机制错）、为何不放 query 答「不知道」。核心：`Authorization: Bearer`、Bearer 协议、URL 是日志/Referer 泄露点、Depends 链 vs 中间件（中间件跑在路由匹配前 + 无法注入 user + 不参与 Swagger）、`OAuth2PasswordRequestForm` 收 form 不收 JSON（前端要 URLSearchParams）、响应 `access_token`+`token_type`、401 必带 `WWW-Authenticate: Bearer`、401 vs 403、三种失败统一提示、双向 type 校验（access 防 refresh 冒充、refresh 防 access 换取）、router 级依赖默认安全、`tokenUrl` 给 Swagger。踩坑：`db.get(username)` 用错 key（key 是 id）、漏密码校验、**dict 点访问 4 次**（`u.username`/`user.id`/`current_user.id`/`user["user_id"]`）、练习4 只做了路由级依赖 + 新建 APIRouter 未赋值 + `include_router(router, APIRouter)`、练习5 复制练习2 后 `body` 未取 `.refresh_token`、type 仍写 access、用 claim 判用户存在、`create_refresh_token` 当 access、漏传 role（测试全绿但 admin 会被降级）。环境：缺 `python-multipart` 报 RuntimeError，已安装。Review：提取 `auth_error()` 函数、去 else、`from None`、缩进/残留 TODO。附带讲了 Python dict `.` vs `[]` 与 JS Map/普通对象命名空间的区别 |
+| 2026-11-11 | 14 CORS | 5 练习全通，学习项 14 完成。核心概念：同源策略=浏览器拦（请求照发响应照回，浏览器拦 JS 读）、Origin=协议+域名+端口、简单请求=传统表单能发的（GET/HEAD/POST+三种 content-type）→ 直接发、非简单请求（JSON/PUT/DELETE/Authorization）→ 先 OPTIONS 预检、allow_methods/allow_headers 默认只有 GET/空必须显式写、allow_credentials=True 时 allow_origins 不能 *（evil.com 可带 cookie 冒充）、allow_origin_regex 正则放行动态端口。探底两题答对（application/json 触发预检、credentials 危险点）。踩坑：练习1 三 bug——`method in ["get"]` 大小写敏感（"GET" 不命中）、`headers in [安全头]` 是"整个列表在不在"而非"每个元素"、`content_type or ...` 短路放行 json 且 None 被误拦；练习2 忘 `return app`（**忘记 return 第 N 次**，AttributeError NoneType）；练习5 参数名 `allow_origins` vs `allow_origin_regex` 搞混 + raw 字符串 `\\d` 双反斜杠（docstring 里 `\\` 渲染才成 `\`）。**主动提问**：「not in 后面一会 () 一会 {}」→ tuple vs set vs list 概念模糊，空 `{}` 是 dict 不是 set |
 
 ---
 
