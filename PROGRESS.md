@@ -11,11 +11,11 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第四阶段：工程化 |
-| **当前学习项** | 16 Redis 缓存（⬜ 未开始 · 第四阶段：工程化）|
-| **总进度** | 21 / 32 |
+| **当前学习项** | 17 pytest（⬜ 未开始 · 第四阶段：工程化）|
+| **总进度** | 22 / 32 |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅、第二阶段 ✅、第三阶段 ✅ |
-| **最近学习日期** | 2026-11-11 |
-| **最近学习内容** | 第三阶段项目「认证 Todo API」完成（bcrypt 注册/登录、JWT 双 token、受保护路由、资源所有权）|
+| **最近学习日期** | 2026-11-13 |
+| **最近学习内容** | 16 Redis 缓存 ✅（练习 6 Hash、7 ZSet + Review 收尾）|
 
 ---
 
@@ -98,7 +98,7 @@
 
 | # | 状态 | 学习项 | 完成日期 | 笔记 |
 |---|------|--------|---------|------|
-| 16 | ⬜ | **Redis 缓存** — redis-py、缓存策略 | — | — |
+| 16 | ✅ | **Redis 缓存** — redis-py、缓存策略 | 2026-11-13 | 连接/TTL、Cache-Aside 读、写时删缓存、穿透哨兵、Hash、ZSet 排行榜 |
 | 17 | ⬜ | **pytest** — fixture、parametrize、mock | — | — |
 | 18 | ⬜ | **httpx + pytest** — API 集成测试、TestClient | — | — |
 | 19 | ⬜ | **Nginx** — 反向代理、负载均衡、静态文件 | — | — |
@@ -183,6 +183,8 @@
 | 2026-11-11 | 14 CORS | 5 练习全通，学习项 14 完成。核心概念：同源策略=浏览器拦（请求照发响应照回，浏览器拦 JS 读）、Origin=协议+域名+端口、简单请求=传统表单能发的（GET/HEAD/POST+三种 content-type）→ 直接发、非简单请求（JSON/PUT/DELETE/Authorization）→ 先 OPTIONS 预检、allow_methods/allow_headers 默认只有 GET/空必须显式写、allow_credentials=True 时 allow_origins 不能 *（evil.com 可带 cookie 冒充）、allow_origin_regex 正则放行动态端口。探底两题答对（application/json 触发预检、credentials 危险点）。踩坑：练习1 三 bug——`method in ["get"]` 大小写敏感（"GET" 不命中）、`headers in [安全头]` 是"整个列表在不在"而非"每个元素"、`content_type or ...` 短路放行 json 且 None 被误拦；练习2 忘 `return app`（**忘记 return 第 N 次**，AttributeError NoneType）；练习5 参数名 `allow_origins` vs `allow_origin_regex` 搞混 + raw 字符串 `\\d` 双反斜杠（docstring 里 `\\` 渲染才成 `\`）。**主动提问**：「not in 后面一会 () 一会 {}」→ tuple vs set vs list 概念模糊，空 `{}` 是 dict 不是 set |
 | 2026-11-11 | 15 HTTPS / SSL/TLS | 3 个练习全通，学习项 15 完成。核心：HTTPS 在 TLS 上承载 HTTP；TLS 提供机密性、完整性、服务器身份认证；证书关联域名和公钥，客户端检查主机名、有效期和 CA 信任链，并验证服务器持有对应私钥；握手协商连接密钥，后续用对称会话密钥保护应用数据；证书有效不代表业务可信；FastAPI 部署常由反向代理/负载均衡器终止 TLS。探底起初以为 HTTPS 只加密、证书用途和完整性校验不清楚；讲解后能区分证书/非对称密码学与会话密钥/对称加密，并判断过期证书和不受信任链应拒绝。练习坑：写 `!expired`（JS 写法）触发 Python SyntaxError，改为 `not`；先用单一复合条件，所有失败都落到 `hostname_mismatch`，后改成按验证优先级逐项提前返回；练习3握手列表一次写对。Review：嵌套条件改为 guard clauses，长列表拆行。补充准确性：练习握手顺序是概念模型，不是 TLS 1.3 精确消息序列；TLS 1.3 在 ClientHello/ServerHello 的 key_share 阶段已进行密钥协商，证书签名（CertificateVerify）与 Finished 用于认证和确认握手/密钥，之后才进入应用数据保护。 |
 | 2026-11-11 | 阶段项目 · 认证 Todo API | 5 个 Task 全部完成，第三阶段收尾 ✅。新建 `auth_todo_db` + 项目目录。核心：User 加 `password_hash`（String(255) 为算法迁移留余量）；security.py 拆成密码/JWT 两组纯函数；TokenPair + RefreshRequest；`TodoCreate` 删掉 `user_id`（IDOR 防御，身份从 token 来）；`OAuth2PasswordBearer` + `get_current_user` 依赖链；单条操作 SQL 同时带 `id` 和 `user_id`，越权统一 404；PATCH 用 `exclude_unset` + `setattr` + commit（Unit of Work）。35 条 TestClient 测试全绿 + uvicorn/curl 端到端 8 步验证（伪造 user_id 被忽略、refresh 冒充 access 401、401 带 WWW-Authenticate）。探底答对「token 放请求头」「user_id 不让客户端传」。踩坑：`String(100)`、`arget_metadata`、`"refesh"`、`decode_token` 四连错（不查 type=安全漏洞 / `raise ("401")` 字符串 / `except JWTError` 把过期异常降级 / algorithms 传字符串）、`Field(1, max_length=120)` 把 default 当 min_length、注册路由 select 构造当执行 + 逻辑反 + `payload["password"]` + `db.add(dict)` + `db.refresh()` 缺参 + `uaername`、登录条件三次才对（`user is not None or verify` → 缺 `not`）、PATCH 没用 payload 导致 200 但没更新。主动提问：String(255) 为何不是 60、encode 的 algorithm 为何是字符串、函数怎么区分 token 无效/过期（答：异常类型）、raise 的文本能否改、`db.refresh(user)` 为何带参数、`not` 是否等于 JS `!`、为什么 `schemas.TokenPair(...)`、refresh token 为何带 user_id。笔记见 `3认证安全/阶段项目-认证TodoAPI/notes.md`。 |
+| 2026-11-12 | 16 Redis 缓存（进行中）| 练习 1–5 完成，6–7 下次继续。环境：brew 装 Redis 8.10.3 + redis-py 8.1.0，`brew services start redis`，练习用 db=15。核心：缓存=空间换时间（Vue computed 类比，区别是后端要手动失效）、Cache-Aside 读路径（命中返回/未命中查库回填+TTL）、写时三策略（删缓存/更新缓存/只靠 TTL，为何是删）、**先更新 DB 再删缓存**（先删后写的翻车时间线、缓存回填竞争、延迟双删、最终一致）、Redis 只存字符串要 json.dumps/loads、缓存穿透与哨兵 `"__missing__"`（短 TTL 原因、先判哨兵再 loads）。踩坑：练习1 参数写死成摆设；练习3 **四轮**才改对（key 无 `todo:` 前缀、读一个 key 写另一个、f-string 拼成 `todotodo_id:`、查到仍 return None、`FAKE_DB[]` KeyError、回填的是标签字符串不是 JSON）；练习4 `KeyError: 999` + `delete(todo_id)` 删错 key + 冗余赋值；练习5 哨兵被 `json.dumps(None)` 覆盖成 `"null"`、命中分支漏 `return json.loads`（**测试没覆盖，测试绿≠无 bug**）、正常 TTL 写成 30。**主动提问**：「命中哨兵值是什么意思」→ 重讲穿透；**分歧**：用户认为内外两条 set 是两个分支 → 讲「缩进即大括号」+ 测试实际值 `"null"` 作铁证。中断点见 `4工程化/16Redis缓存/学习进度快照.md`，笔记见同目录 `notes.md`。 |
+| 2026-11-13 | 16 Redis 缓存 ✅ 完成 | 练习 6/7 完成 + Review 收尾，学习项 16 完成。核心：Hash=一个 key 下多字段（Vue `reactive` 类比，`hset(key, mapping=dict)` 写 / `hgetall(key)` 读，值读出都是字符串，缺 key 返回 `{}`）；Sorted Set=存进去就按分数排好（`zadd(mapping={name: score})` 同名更新分数，`zrevrange(key, 0, 2)` 从高到低且**闭区间**）。踩坑：练习6 `hgetall(key, json.dumps(data))` 用读方法写 + 多传参数 + 不该再 json.dumps；练习7 `zdd` 手滑、key 写成 `'1cc'` 读写不一致；**测试自己的期望值写错**（bob 150 > carol 120，期望却写成 carol 在前）——用 `redis-cli zrange ... withscores` 看现场确认用户实现正确，第 2 次出现「Claude 手写期望值错误」（首次在学习项 13）。Review：练习1 参数写死、残留 TODO、练习4 冗余赋值、行尾空格/连续空行/单双引号/单行 if 全部清理。测试 7/7 全绿。笔记见 `4工程化/16Redis缓存/notes.md`。 |
 
 ---
 
