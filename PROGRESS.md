@@ -11,11 +11,11 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第四阶段：工程化 |
-| **当前学习项** | 17 pytest（⬜ 未开始 · 第四阶段：工程化）|
-| **总进度** | 22 / 32 |
+| **当前学习项** | 18 httpx + pytest（⬜ 未开始 · 第四阶段：工程化）|
+| **总进度** | 23 / 32 |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅、第二阶段 ✅、第三阶段 ✅ |
-| **最近学习日期** | 2026-11-13 |
-| **最近学习内容** | 16 Redis 缓存 ✅（练习 6 Hash、7 ZSet + Review 收尾）|
+| **最近学习日期** | 2026-11-14 |
+| **最近学习内容** | 17 pytest ✅（练习 1–8 + Review 收尾）|
 
 ---
 
@@ -99,7 +99,7 @@
 | # | 状态 | 学习项 | 完成日期 | 笔记 |
 |---|------|--------|---------|------|
 | 16 | ✅ | **Redis 缓存** — redis-py、缓存策略 | 2026-11-13 | 连接/TTL、Cache-Aside 读、写时删缓存、穿透哨兵、Hash、ZSet 排行榜 |
-| 17 | ⬜ | **pytest** — fixture、parametrize、mock | — | — |
+| 17 | ✅ | **pytest** — fixture、parametrize、mock | 2026-11-14 | 发现规则（test_*.py + test_ 函数）、assert 改写、pytest.raises/match、fixture yield/scope/依赖、conftest.py、parametrize、monkeypatch/MagicMock、mock 边界、ERROR vs FAILED、属性 vs 方法 |
 | 18 | ⬜ | **httpx + pytest** — API 集成测试、TestClient | — | — |
 | 19 | ⬜ | **Nginx** — 反向代理、负载均衡、静态文件 | — | — |
 | 20 | ⬜ | **CI/CD** — GitHub Actions | — | — |
@@ -185,6 +185,8 @@
 | 2026-11-11 | 阶段项目 · 认证 Todo API | 5 个 Task 全部完成，第三阶段收尾 ✅。新建 `auth_todo_db` + 项目目录。核心：User 加 `password_hash`（String(255) 为算法迁移留余量）；security.py 拆成密码/JWT 两组纯函数；TokenPair + RefreshRequest；`TodoCreate` 删掉 `user_id`（IDOR 防御，身份从 token 来）；`OAuth2PasswordBearer` + `get_current_user` 依赖链；单条操作 SQL 同时带 `id` 和 `user_id`，越权统一 404；PATCH 用 `exclude_unset` + `setattr` + commit（Unit of Work）。35 条 TestClient 测试全绿 + uvicorn/curl 端到端 8 步验证（伪造 user_id 被忽略、refresh 冒充 access 401、401 带 WWW-Authenticate）。探底答对「token 放请求头」「user_id 不让客户端传」。踩坑：`String(100)`、`arget_metadata`、`"refesh"`、`decode_token` 四连错（不查 type=安全漏洞 / `raise ("401")` 字符串 / `except JWTError` 把过期异常降级 / algorithms 传字符串）、`Field(1, max_length=120)` 把 default 当 min_length、注册路由 select 构造当执行 + 逻辑反 + `payload["password"]` + `db.add(dict)` + `db.refresh()` 缺参 + `uaername`、登录条件三次才对（`user is not None or verify` → 缺 `not`）、PATCH 没用 payload 导致 200 但没更新。主动提问：String(255) 为何不是 60、encode 的 algorithm 为何是字符串、函数怎么区分 token 无效/过期（答：异常类型）、raise 的文本能否改、`db.refresh(user)` 为何带参数、`not` 是否等于 JS `!`、为什么 `schemas.TokenPair(...)`、refresh token 为何带 user_id。笔记见 `3认证安全/阶段项目-认证TodoAPI/notes.md`。 |
 | 2026-11-12 | 16 Redis 缓存（进行中）| 练习 1–5 完成，6–7 下次继续。环境：brew 装 Redis 8.10.3 + redis-py 8.1.0，`brew services start redis`，练习用 db=15。核心：缓存=空间换时间（Vue computed 类比，区别是后端要手动失效）、Cache-Aside 读路径（命中返回/未命中查库回填+TTL）、写时三策略（删缓存/更新缓存/只靠 TTL，为何是删）、**先更新 DB 再删缓存**（先删后写的翻车时间线、缓存回填竞争、延迟双删、最终一致）、Redis 只存字符串要 json.dumps/loads、缓存穿透与哨兵 `"__missing__"`（短 TTL 原因、先判哨兵再 loads）。踩坑：练习1 参数写死成摆设；练习3 **四轮**才改对（key 无 `todo:` 前缀、读一个 key 写另一个、f-string 拼成 `todotodo_id:`、查到仍 return None、`FAKE_DB[]` KeyError、回填的是标签字符串不是 JSON）；练习4 `KeyError: 999` + `delete(todo_id)` 删错 key + 冗余赋值；练习5 哨兵被 `json.dumps(None)` 覆盖成 `"null"`、命中分支漏 `return json.loads`（**测试没覆盖，测试绿≠无 bug**）、正常 TTL 写成 30。**主动提问**：「命中哨兵值是什么意思」→ 重讲穿透；**分歧**：用户认为内外两条 set 是两个分支 → 讲「缩进即大括号」+ 测试实际值 `"null"` 作铁证。中断点见 `4工程化/16Redis缓存/学习进度快照.md`，笔记见同目录 `notes.md`。 |
 | 2026-11-13 | 16 Redis 缓存 ✅ 完成 | 练习 6/7 完成 + Review 收尾，学习项 16 完成。核心：Hash=一个 key 下多字段（Vue `reactive` 类比，`hset(key, mapping=dict)` 写 / `hgetall(key)` 读，值读出都是字符串，缺 key 返回 `{}`）；Sorted Set=存进去就按分数排好（`zadd(mapping={name: score})` 同名更新分数，`zrevrange(key, 0, 2)` 从高到低且**闭区间**）。踩坑：练习6 `hgetall(key, json.dumps(data))` 用读方法写 + 多传参数 + 不该再 json.dumps；练习7 `zdd` 手滑、key 写成 `'1cc'` 读写不一致；**测试自己的期望值写错**（bob 150 > carol 120，期望却写成 carol 在前）——用 `redis-cli zrange ... withscores` 看现场确认用户实现正确，第 2 次出现「Claude 手写期望值错误」（首次在学习项 13）。Review：练习1 参数写死、残留 TODO、练习4 冗余赋值、行尾空格/连续空行/单双引号/单行 if 全部清理。测试 7/7 全绿。笔记见 `4工程化/16Redis缓存/notes.md`。 |
+
+| 2026-11-14 | 17 pytest ✅ 完成 | 练习 1–8 全通（13 个测试）+ demo 收尾。核心：pytest 靠命名收集（文件 `test_*.py` + 函数 `test_`，两条都满足）、assert 失败自动显示实际值、`pytest.raises(E, match=...)` 测异常、fixture 用 `yield` 分准备/清理（失败也清理）、scope=function 隔离会改数据的东西、fixture 可依赖 fixture（同一实例用 `is` 验证）、conftest.py 免 import 共享、parametrize 每组一个测试（for 循环第一组挂就停）、monkeypatch.setattr 替换外部依赖、MagicMock 的 return_value/assert_called_once_with/assert_not_called、mock 边界只 mock 外部系统不 mock 自写纯函数。踩坑：fixture 写进测试函数内部（fixture not found）、`FakeDB = {}` 覆盖类名、**`db.close` → `db.close()` → `db.closed` 三轮才改对（属性 vs 方法完全不知道，用户主动提问）**、`monkeypatch(...)` 漏 `.setattr`（MonkeyPatch not callable）、`practice.py` 跑目录不被收集（改名 test_practice.py，显式传路径会绕过命名规则）。Review：清理模板注释、PEP8 空行/import 分组。笔记见 `4工程化/17pytest/notes.md`。 |
 
 ---
 
