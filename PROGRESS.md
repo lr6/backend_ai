@@ -11,11 +11,11 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第四阶段：工程化 |
-| **当前学习项** | 18 httpx + pytest（⬜ 未开始 · 第四阶段：工程化）|
-| **总进度** | 23 / 32 |
+| **当前学习项** | 19 Nginx（⬜ 未开始 · 第四阶段：工程化）|
+| **总进度** | 24 / 32 |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅、第二阶段 ✅、第三阶段 ✅ |
 | **最近学习日期** | 2026-11-14 |
-| **最近学习内容** | 17 pytest ✅（练习 1–8 + Review 收尾）|
+| **最近学习内容** | 18 httpx + pytest ✅（练习 1–10 + Review 收尾）|
 
 ---
 
@@ -100,7 +100,7 @@
 |---|------|--------|---------|------|
 | 16 | ✅ | **Redis 缓存** — redis-py、缓存策略 | 2026-11-13 | 连接/TTL、Cache-Aside 读、写时删缓存、穿透哨兵、Hash、ZSet 排行榜 |
 | 17 | ✅ | **pytest** — fixture、parametrize、mock | 2026-11-14 | 发现规则（test_*.py + test_ 函数）、assert 改写、pytest.raises/match、fixture yield/scope/依赖、conftest.py、parametrize、monkeypatch/MagicMock、mock 边界、ERROR vs FAILED、属性 vs 方法 |
-| 18 | ⬜ | **httpx + pytest** — API 集成测试、TestClient | — | — |
+| 18 | ✅ | **httpx + pytest** — API 集成测试、TestClient | 2026-11-14 | TestClient=进程内 ASGI 调用（无网络/端口/uvicorn）、json= vs data=、dependency_overrides（key 是函数对象、值必须可调用、teardown clear）、独立测试库 + 每测试隔离、204 无 body、422 vs 401、getattr=getattr(obj,name)(url) |
 | 19 | ⬜ | **Nginx** — 反向代理、负载均衡、静态文件 | — | — |
 | 20 | ⬜ | **CI/CD** — GitHub Actions | — | — |
 
@@ -187,6 +187,8 @@
 | 2026-11-13 | 16 Redis 缓存 ✅ 完成 | 练习 6/7 完成 + Review 收尾，学习项 16 完成。核心：Hash=一个 key 下多字段（Vue `reactive` 类比，`hset(key, mapping=dict)` 写 / `hgetall(key)` 读，值读出都是字符串，缺 key 返回 `{}`）；Sorted Set=存进去就按分数排好（`zadd(mapping={name: score})` 同名更新分数，`zrevrange(key, 0, 2)` 从高到低且**闭区间**）。踩坑：练习6 `hgetall(key, json.dumps(data))` 用读方法写 + 多传参数 + 不该再 json.dumps；练习7 `zdd` 手滑、key 写成 `'1cc'` 读写不一致；**测试自己的期望值写错**（bob 150 > carol 120，期望却写成 carol 在前）——用 `redis-cli zrange ... withscores` 看现场确认用户实现正确，第 2 次出现「Claude 手写期望值错误」（首次在学习项 13）。Review：练习1 参数写死、残留 TODO、练习4 冗余赋值、行尾空格/连续空行/单双引号/单行 if 全部清理。测试 7/7 全绿。笔记见 `4工程化/16Redis缓存/notes.md`。 |
 
 | 2026-11-14 | 17 pytest ✅ 完成 | 练习 1–8 全通（13 个测试）+ demo 收尾。核心：pytest 靠命名收集（文件 `test_*.py` + 函数 `test_`，两条都满足）、assert 失败自动显示实际值、`pytest.raises(E, match=...)` 测异常、fixture 用 `yield` 分准备/清理（失败也清理）、scope=function 隔离会改数据的东西、fixture 可依赖 fixture（同一实例用 `is` 验证）、conftest.py 免 import 共享、parametrize 每组一个测试（for 循环第一组挂就停）、monkeypatch.setattr 替换外部依赖、MagicMock 的 return_value/assert_called_once_with/assert_not_called、mock 边界只 mock 外部系统不 mock 自写纯函数。踩坑：fixture 写进测试函数内部（fixture not found）、`FakeDB = {}` 覆盖类名、**`db.close` → `db.close()` → `db.closed` 三轮才改对（属性 vs 方法完全不知道，用户主动提问）**、`monkeypatch(...)` 漏 `.setattr`（MonkeyPatch not callable）、`practice.py` 跑目录不被收集（改名 test_practice.py，显式传路径会绕过命名规则）。Review：清理模板注释、PEP8 空行/import 分组。笔记见 `4工程化/17pytest/notes.md`。 |
+
+| 2026-11-14 | 18 httpx + pytest ✅ 完成 | 练习 1–10 全通（12 个测试）+ Review。核心：TestClient 基于 httpx + ASGI transport，进程内直接调用 app，**不经过网络、不用起 uvicorn**，但路由/校验/依赖注入/中间件全是真的；`client.post` 除 url 外全是 keyword-only，`json=` 发 JSON、`data=` 发 form；`app.dependency_overrides[get_store] = lambda: store` 替换依赖（key 必须是函数对象、值必须可调用、`yield` 后 `clear()`，因为 app 是单例）；真实项目用独立测试库 + create_all/drop_all + 每测试 rollback；204 无 body 不能 `r.json()`；422=验证层（缺字段/必填头），401=认证失败；`getattr(obj, name)` 只取属性，第三个参数是兜底默认值，调用要 `getattr(client, method)(url)`。踩坑：`return Store` 返回类不是实例、override 给实例（not callable）、清理写成 `= None`、`r.josn` 拼写 + 少括号、`client.post(url, dict)` 位置参数 TypeError、练习 7 漏 DELETE 步骤 + `/todo/1` 少 s 导致「404 假阳性（测试通过≠行为正确）」。**Claude 出题错误**：`Header(...)` 必填导致缺头返回 422 而非 401，已改 app.py 为可选头 + 主动 401。Review：`r.json()` 复用为 body、引号/空格/空行、隔离测试补状态码断言。笔记见 `4工程化/18httpx-pytest/notes.md`。 |
 
 ---
 
