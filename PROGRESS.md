@@ -11,11 +11,11 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第四阶段：工程化 |
-| **当前学习项** | 20 CI/CD（⬜ 未开始 · 第四阶段：工程化）|
-| **总进度** | 25 / 32 |
+| **当前学习项** | 第四阶段项目：工程化 Todo API（⬜ 未开始）|
+| **总进度** | 26 / 32 |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅、第二阶段 ✅、第三阶段 ✅ |
 | **最近学习日期** | 2026-11-15 |
-| **最近学习内容** | 19 Nginx ✅（练习 1–5 + Review 收尾）|
+| **最近学习内容** | 20 CI/CD ✅（GitHub Actions 真实运行 test/deploy 全绿）|
 
 ---
 
@@ -102,7 +102,7 @@
 | 17 | ✅ | **pytest** — fixture、parametrize、mock | 2026-11-14 | 发现规则（test_*.py + test_ 函数）、assert 改写、pytest.raises/match、fixture yield/scope/依赖、conftest.py、parametrize、monkeypatch/MagicMock、mock 边界、ERROR vs FAILED、属性 vs 方法 |
 | 18 | ✅ | **httpx + pytest** — API 集成测试、TestClient | 2026-11-14 | TestClient=进程内 ASGI 调用（无网络/端口/uvicorn）、json= vs data=、dependency_overrides（key 是函数对象、值必须可调用、teardown clear）、独立测试库 + 每测试隔离、204 无 body、422 vs 401、getattr=getattr(obj,name)(url) |
 | 19 | ✅ | **Nginx** — 反向代理、负载均衡、静态文件 | 2026-11-15 | uvicorn=服务器/FastAPI=app 同进程、正反向代理判断标准、五层配置结构、`proxy_pass` 尾斜杠剥前缀、`proxy_set_header` 三件套、upstream 轮询、location 优先级（=`>`^~`>正则>最长前缀）、`try_files` SPA 回退；踩坑：`serve` 拼写、块指令后多 `;`、`return` 裸字符串/缺分号、`/img` 缺 `^~` 被正则抢占 |
-| 20 | 🔄 | **CI/CD** — GitHub Actions | — | — |
+| 20 | ✅ | **CI/CD** — GitHub Actions | 2026-11-15 | CI=push 自动 lint/test/build、CD 的 Delivery（人工上线）vs Deployment（全自动）；workflow→job→steps，runner 是用完即焚的临时 VM；`uses` vs `run`、`with` 参数、`run: \|` 多行；steps 隐式 `if: success()` 短路、`needs` 等成功、`if` 条件、`secrets` 空值不报错；YAML 坑：`on: a, b` 是字符串、`with:` 要和 `uses` 对齐、不能同行嵌套 key |
 
 > 🛠️ 阶段项目：Todo API + Redis 缓存 + Nginx + 测试 + CI/CD
 
@@ -190,6 +190,7 @@
 
 | 2026-11-14 | 18 httpx + pytest ✅ 完成 | 练习 1–10 全通（12 个测试）+ Review。核心：TestClient 基于 httpx + ASGI transport，进程内直接调用 app，**不经过网络、不用起 uvicorn**，但路由/校验/依赖注入/中间件全是真的；`client.post` 除 url 外全是 keyword-only，`json=` 发 JSON、`data=` 发 form；`app.dependency_overrides[get_store] = lambda: store` 替换依赖（key 必须是函数对象、值必须可调用、`yield` 后 `clear()`，因为 app 是单例）；真实项目用独立测试库 + create_all/drop_all + 每测试 rollback；204 无 body 不能 `r.json()`；422=验证层（缺字段/必填头），401=认证失败；`getattr(obj, name)` 只取属性，第三个参数是兜底默认值，调用要 `getattr(client, method)(url)`。踩坑：`return Store` 返回类不是实例、override 给实例（not callable）、清理写成 `= None`、`r.josn` 拼写 + 少括号、`client.post(url, dict)` 位置参数 TypeError、练习 7 漏 DELETE 步骤 + `/todo/1` 少 s 导致「404 假阳性（测试通过≠行为正确）」。**Claude 出题错误**：`Header(...)` 必填导致缺头返回 422 而非 401，已改 app.py 为可选头 + 主动 401。Review：`r.json()` 复用为 body、引号/空格/空行、隔离测试补状态码断言。笔记见 `4工程化/18httpx-pytest/notes.md`。 |
 | 2026-11-15 | 19 Nginx ✅ 完成 | 练习 1–5 全通（12 条断言）+ Review。环境：brew 装 nginx 1.31.8，练习目录 `4工程化/19Nginx/`（app.py 回声服务 + static + nginx.conf + check.py 自动起 2 个 uvicorn 和 nginx 跑断言）。核心：uvicorn=监听端口的服务器、FastAPI=ASGI 可调用对象，同进程共存；正向代理替客户端出头 vs 反向代理替服务器出头（判断标准：代理谁）；Nginx 五层结构 main/events/http/server/location；`proxy_pass` 末尾带 `/` 剥前缀（`/api/hello`→`/hello`）；`proxy_set_header Host/X-Real-IP/X-Forwarded-For`（XFF 用 `$proxy_add_x_forwarded_for` 追加不覆盖）；upstream 默认轮询、必须写在 http 块；location 优先级 `=` > `^~` > 正则（按书写顺序）> 最长前缀；`try_files $uri $uri/ /index.html` = Vue Router history 模式生产必备。探底：Vite proxy 答对（补充是 dev server 转发、同源所以没 CORS）；跳过「为何 uvicorn 前要有 Nginx」转而**主动提问 uvicorn 是什么**；检查题「uvicorn 崩了 app 还在吗」答成「uvicorn 不知道谁在监听」→ 纠正监听者就是 uvicorn；正/反向判断标准答对。踩坑：练习 4 `serve` 拼写 + `upstream{...};` 多分号；**练习 5 三轮才过**——`return "文本"` 裸字符串不合法、`return 200 "..."` 缺分号（报错行号漂到下一行 `}`）、`location /img` 没加 `^~` 被 `~* \.png$` 抢走、响应体写成正则表达式本身。Review：清理过时 TODO 注释、`/img`→`/img/`；指出正则抢 `/api/xxx.png` 的生产隐患。笔记见 `4工程化/19Nginx/notes.md`。 |
+| 2026-11-15 | 20 CI/CD ✅ 完成 | 练习 1–4 完成，GitHub 真实运行 CI #1 全绿（test ✅ deploy ✅）。核心：CI=push 自动拉代码/装依赖/lint/test/build；CD 的 Continuous Delivery（自动到可发布，人工上线）vs Continuous Deployment（全自动），Vercel 默认属于后者；GitHub Actions 模型 workflow→job→steps，runner 是 GitHub 临时 Linux VM、用完即销毁，所以部署要用 SSH/镜像/self-hosted runner；steps 顺序执行且隐式 `if: success()`，某步失败后续跳过，`needs: test` 等的是成功，失败则下游 skipped；`if: always()/failure()`、`continue-on-error` 是反例开关；`uses` 用 action（必须带 @版本）、`with` 传参、`run: |` 写多行脚本；`${{ }}` 表达式、`secrets.XXX` 未配置时为空字符串不报错。探底：CI 跑在 GitHub 的 Linux 机器答对；CI/CD 定义全不知道 → 直接讲；Vercel 自动上线判为 Deployment 答对；检查题「step3 失败 step4/deploy 会不会跑」答「不会，不知道为什么」→ 补隐式 success 语义。踩坑：**打开 check.py 当练习文件找不到 on**（路径混淆）；练习 1 写成 `on: push, pull_request, workflow_dispatch` 被当成一个字符串；练习 2 `with:` 和 `-` 对齐导致 `expected <block end>` + `with: python-version: ...` 同行嵌套 key；用户明确要求直接给答案 → Claude 写完整份并逐段讲解。**Claude 自己的 bug**：`check.py --wait` 在首个 run 出现前直接返回，已修。验证方式：公开 API 轮询 `check.py --remote --wait`，无需 gh/token。笔记见 `4工程化/20CICD/notes.md`。 |
 
 ---
 

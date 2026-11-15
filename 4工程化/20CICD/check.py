@@ -203,6 +203,10 @@ def check_remote(wait=False):
 
         runs = [r for r in data.get("workflow_runs", []) if str(r.get("path", "")).endswith("ci.yml")]
         if not runs:
+            if wait and time.time() < deadline:
+                print("  ⏳ 还没有 ci.yml 的运行记录（刚 push 时排队有几秒延迟），10 秒后重试...")
+                time.sleep(10)
+                continue
             print("  ℹ️  还没有 ci.yml 的运行记录——先把 workflow push 上去")
             print(f"     https://github.com/{REPO}/actions")
             return True
