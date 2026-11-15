@@ -11,11 +11,11 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第四阶段：工程化 |
-| **当前学习项** | 19 Nginx（⬜ 未开始 · 第四阶段：工程化）|
-| **总进度** | 24 / 32 |
+| **当前学习项** | 20 CI/CD（⬜ 未开始 · 第四阶段：工程化）|
+| **总进度** | 25 / 32 |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅、第二阶段 ✅、第三阶段 ✅ |
-| **最近学习日期** | 2026-11-14 |
-| **最近学习内容** | 18 httpx + pytest ✅（练习 1–10 + Review 收尾）|
+| **最近学习日期** | 2026-11-15 |
+| **最近学习内容** | 19 Nginx ✅（练习 1–5 + Review 收尾）|
 
 ---
 
@@ -101,7 +101,7 @@
 | 16 | ✅ | **Redis 缓存** — redis-py、缓存策略 | 2026-11-13 | 连接/TTL、Cache-Aside 读、写时删缓存、穿透哨兵、Hash、ZSet 排行榜 |
 | 17 | ✅ | **pytest** — fixture、parametrize、mock | 2026-11-14 | 发现规则（test_*.py + test_ 函数）、assert 改写、pytest.raises/match、fixture yield/scope/依赖、conftest.py、parametrize、monkeypatch/MagicMock、mock 边界、ERROR vs FAILED、属性 vs 方法 |
 | 18 | ✅ | **httpx + pytest** — API 集成测试、TestClient | 2026-11-14 | TestClient=进程内 ASGI 调用（无网络/端口/uvicorn）、json= vs data=、dependency_overrides（key 是函数对象、值必须可调用、teardown clear）、独立测试库 + 每测试隔离、204 无 body、422 vs 401、getattr=getattr(obj,name)(url) |
-| 19 | ⬜ | **Nginx** — 反向代理、负载均衡、静态文件 | — | — |
+| 19 | ✅ | **Nginx** — 反向代理、负载均衡、静态文件 | 2026-11-15 | uvicorn=服务器/FastAPI=app 同进程、正反向代理判断标准、五层配置结构、`proxy_pass` 尾斜杠剥前缀、`proxy_set_header` 三件套、upstream 轮询、location 优先级（=`>`^~`>正则>最长前缀）、`try_files` SPA 回退；踩坑：`serve` 拼写、块指令后多 `;`、`return` 裸字符串/缺分号、`/img` 缺 `^~` 被正则抢占 |
 | 20 | ⬜ | **CI/CD** — GitHub Actions | — | — |
 
 > 🛠️ 阶段项目：Todo API + Redis 缓存 + Nginx + 测试 + CI/CD
@@ -189,6 +189,7 @@
 | 2026-11-14 | 17 pytest ✅ 完成 | 练习 1–8 全通（13 个测试）+ demo 收尾。核心：pytest 靠命名收集（文件 `test_*.py` + 函数 `test_`，两条都满足）、assert 失败自动显示实际值、`pytest.raises(E, match=...)` 测异常、fixture 用 `yield` 分准备/清理（失败也清理）、scope=function 隔离会改数据的东西、fixture 可依赖 fixture（同一实例用 `is` 验证）、conftest.py 免 import 共享、parametrize 每组一个测试（for 循环第一组挂就停）、monkeypatch.setattr 替换外部依赖、MagicMock 的 return_value/assert_called_once_with/assert_not_called、mock 边界只 mock 外部系统不 mock 自写纯函数。踩坑：fixture 写进测试函数内部（fixture not found）、`FakeDB = {}` 覆盖类名、**`db.close` → `db.close()` → `db.closed` 三轮才改对（属性 vs 方法完全不知道，用户主动提问）**、`monkeypatch(...)` 漏 `.setattr`（MonkeyPatch not callable）、`practice.py` 跑目录不被收集（改名 test_practice.py，显式传路径会绕过命名规则）。Review：清理模板注释、PEP8 空行/import 分组。笔记见 `4工程化/17pytest/notes.md`。 |
 
 | 2026-11-14 | 18 httpx + pytest ✅ 完成 | 练习 1–10 全通（12 个测试）+ Review。核心：TestClient 基于 httpx + ASGI transport，进程内直接调用 app，**不经过网络、不用起 uvicorn**，但路由/校验/依赖注入/中间件全是真的；`client.post` 除 url 外全是 keyword-only，`json=` 发 JSON、`data=` 发 form；`app.dependency_overrides[get_store] = lambda: store` 替换依赖（key 必须是函数对象、值必须可调用、`yield` 后 `clear()`，因为 app 是单例）；真实项目用独立测试库 + create_all/drop_all + 每测试 rollback；204 无 body 不能 `r.json()`；422=验证层（缺字段/必填头），401=认证失败；`getattr(obj, name)` 只取属性，第三个参数是兜底默认值，调用要 `getattr(client, method)(url)`。踩坑：`return Store` 返回类不是实例、override 给实例（not callable）、清理写成 `= None`、`r.josn` 拼写 + 少括号、`client.post(url, dict)` 位置参数 TypeError、练习 7 漏 DELETE 步骤 + `/todo/1` 少 s 导致「404 假阳性（测试通过≠行为正确）」。**Claude 出题错误**：`Header(...)` 必填导致缺头返回 422 而非 401，已改 app.py 为可选头 + 主动 401。Review：`r.json()` 复用为 body、引号/空格/空行、隔离测试补状态码断言。笔记见 `4工程化/18httpx-pytest/notes.md`。 |
+| 2026-11-15 | 19 Nginx ✅ 完成 | 练习 1–5 全通（12 条断言）+ Review。环境：brew 装 nginx 1.31.8，练习目录 `4工程化/19Nginx/`（app.py 回声服务 + static + nginx.conf + check.py 自动起 2 个 uvicorn 和 nginx 跑断言）。核心：uvicorn=监听端口的服务器、FastAPI=ASGI 可调用对象，同进程共存；正向代理替客户端出头 vs 反向代理替服务器出头（判断标准：代理谁）；Nginx 五层结构 main/events/http/server/location；`proxy_pass` 末尾带 `/` 剥前缀（`/api/hello`→`/hello`）；`proxy_set_header Host/X-Real-IP/X-Forwarded-For`（XFF 用 `$proxy_add_x_forwarded_for` 追加不覆盖）；upstream 默认轮询、必须写在 http 块；location 优先级 `=` > `^~` > 正则（按书写顺序）> 最长前缀；`try_files $uri $uri/ /index.html` = Vue Router history 模式生产必备。探底：Vite proxy 答对（补充是 dev server 转发、同源所以没 CORS）；跳过「为何 uvicorn 前要有 Nginx」转而**主动提问 uvicorn 是什么**；检查题「uvicorn 崩了 app 还在吗」答成「uvicorn 不知道谁在监听」→ 纠正监听者就是 uvicorn；正/反向判断标准答对。踩坑：练习 4 `serve` 拼写 + `upstream{...};` 多分号；**练习 5 三轮才过**——`return "文本"` 裸字符串不合法、`return 200 "..."` 缺分号（报错行号漂到下一行 `}`）、`location /img` 没加 `^~` 被 `~* \.png$` 抢走、响应体写成正则表达式本身。Review：清理过时 TODO 注释、`/img`→`/img/`；指出正则抢 `/api/xxx.png` 的生产隐患。笔记见 `4工程化/19Nginx/notes.md`。 |
 
 ---
 

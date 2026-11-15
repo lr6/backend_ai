@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Nginx 静态页</title>
+  <style>
+    body { font-family: -apple-system, "PingFang SC", sans-serif; max-width: 640px; margin: 64px auto; padding: 0 24px; color: #222; }
+    code { background: #f3f3f3; padding: 2px 6px; border-radius: 4px; }
+    .tag { display: inline-block; background: #e8f4ff; color: #0b6bcb; padding: 2px 8px; border-radius: 999px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <p class="tag">Nginx 静态页</p>
+  <h1>这个页面是 Nginx 直接发给你的</h1>
+  <p>页面来自 <code>static/index.html</code>，请求没有经过任何 Python 进程。</p>
+  <p>试试访问 <code>/about</code>：静态目录里没有这个文件，但 SPA 回退会照样返回本页。</p>
+  <p>后端回声接口：<code>/api/hello</code>（需要反向代理配置正确）</p>
+</body>
+</html>
