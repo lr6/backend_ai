@@ -102,7 +102,7 @@
 | 17 | ✅ | **pytest** — fixture、parametrize、mock | 2026-11-14 | 发现规则（test_*.py + test_ 函数）、assert 改写、pytest.raises/match、fixture yield/scope/依赖、conftest.py、parametrize、monkeypatch/MagicMock、mock 边界、ERROR vs FAILED、属性 vs 方法 |
 | 18 | ✅ | **httpx + pytest** — API 集成测试、TestClient | 2026-11-14 | TestClient=进程内 ASGI 调用（无网络/端口/uvicorn）、json= vs data=、dependency_overrides（key 是函数对象、值必须可调用、teardown clear）、独立测试库 + 每测试隔离、204 无 body、422 vs 401、getattr=getattr(obj,name)(url) |
 | 19 | ✅ | **Nginx** — 反向代理、负载均衡、静态文件 | 2026-11-15 | uvicorn=服务器/FastAPI=app 同进程、正反向代理判断标准、五层配置结构、`proxy_pass` 尾斜杠剥前缀、`proxy_set_header` 三件套、upstream 轮询、location 优先级（=`>`^~`>正则>最长前缀）、`try_files` SPA 回退；踩坑：`serve` 拼写、块指令后多 `;`、`return` 裸字符串/缺分号、`/img` 缺 `^~` 被正则抢占 |
-| 20 | ⬜ | **CI/CD** — GitHub Actions | — | — |
+| 20 | 🔄 | **CI/CD** — GitHub Actions | — | — |
 
 > 🛠️ 阶段项目：Todo API + Redis 缓存 + Nginx + 测试 + CI/CD
 
