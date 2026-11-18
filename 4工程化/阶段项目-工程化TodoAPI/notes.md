@@ -159,15 +159,22 @@ app.include_router(todos.router)
 **所有权 = 防 IDOR**：每条 todo 操作都同时按 `id` + `user_id` 查，
 别人的资源统一 **404**（不是 403 —— 403 等于告诉对方「存在但你无权」）。
 
+这段逻辑在三个路由里重复，Review 后抽成了私有函数：
+
 ```python
-stmt = select(models.Todo).where(
-    models.Todo.id == todo_id,
-    models.Todo.user_id == current_user.id,
-)
-todo = db.scalar(stmt)          # 一条或 None
-if todo is None:
-    raise HTTPException(404, "todo not found")
+def _get_owned_todo(todo_id: int, current_user: models.User, db: Session) -> models.Todo:
+    stmt = select(models.Todo).where(
+        models.Todo.id == todo_id,
+        models.Todo.user_id == current_user.id,
+    )
+    todo = db.scalar(stmt)          # 一条或 None
+    if todo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="todo not found")
+    return todo
 ```
+
+放在 `routers/todos.py` 而不是 `deps.py`：它只服务 todo 的数据访问；
+`deps.py` 放跨路由共享的依赖（如 `get_current_user`）。
 
 **scalar vs scalars**：
 
@@ -192,6 +199,85 @@ db.refresh(todo)
 **response_model 已经负责 ORM → dict 的转换**：`TodoRead` 有
 `model_config = ConfigDict(from_attributes=True)`，路由里直接 `return todo` 即可，
 不要手工 `schemas.TodoRead(id=todo.id, ...)` —— 加字段时会漏。
+
+### 补充提问 1 · 已经声明 `response_model`，为什么还要 `return` 构造对象？
+
+**提问原话**：「auth.py 里实现登录和刷新已经写了 `response_model=schemas.TokenPair`，
+为啥还要 `return schemas.TokenPair(...)`，我不是很理解。」
+
+`response_model` 不生产数据，它只做「出口检查 + 说明书」：
+
+| 职责 | 说明 |
+|------|------|
+| OpenAPI 文档 | Swagger 的响应示例、字段类型从这里来 |
+| 响应校验 | 返回的东西不符合 → `ResponseValidationError` |
+| 字段白名单 | `UserRead` 没有 `password_hash`，多返回的字段会被过滤 |
+| 序列化 + 默认值 | 转 JSON；`token_type` 这类默认值在校验时补上 |
+
+最硬的证据：`get_todo` 返回 `ScalarResult` 时，`response_model=TodoRead` 就在，
+但它没能把 `ScalarResult`「变」成 `TodoRead`，只会报
+`ResponseValidationError: 'id': Field required, input: <ScalarResult>`。
+
+**前端类比**：TypeScript 的返回类型标注不会替你创建对象，函数体还得 `return`：
+
+```ts
+function login(): TokenPair {
+  return { accessToken, refreshToken }   // 标注只是合同
+}
+```
+
+**为什么这里要构造**：两个 token 是两个函数调用现造的字符串，不像 `todo` 那样背后
+有一个现成 ORM 对象（靠 `from_attributes` 自动读属性），所以必须装进某种结构。
+两种写法等价：
+
+```python
+return schemas.TokenPair(access_token=..., refresh_token=...)   # Pydantic 实例：类型检查
+return {"access_token": ..., "refresh_token": ...}              # dict：短，默认值由 response_model 补
+```
+
+最终采用 dict 写法，`token_type` 由 `TokenPair` 的默认值在校验时补上。
+**要不要构造，取决于手里已经有什么，而不是 response_model 有没有声明。**
+
+### 补充提问 2 · `=` 什么时候加空格？
+
+**提问原话**：「是只有变量赋值才加吗，剩下的场景统统不加吗？」
+
+准确说：**「绑定一个名字」加空格，「给参数起个名字」不加**。
+
+| 场景 | 写法 | 空格 |
+|------|------|------|
+| 普通赋值 | `x = 1` | ✅ |
+| 增强赋值 | `count += 1` | ✅ |
+| 类型注解赋值 | `x: int = 1` | ✅ |
+| 元组解包 | `a, b = 1, 2` | ✅ |
+| 函数调用关键字参数 | `User(username="a")` | ❌ |
+| 函数定义默认值（无注解） | `def f(x=1):` | ❌ |
+| 函数定义默认值（**有注解**） | `def f(x: int = 1):` | ✅ |
+| lambda 默认值 | `lambda x=1: x` | ❌ |
+
+反直觉点：同样在 `def` 里，有没有类型注解决定了要不要加空格。
+
+### 补充 · 并发注册的兜底（生产细节）
+
+「先查重 → 再插入」是两步，两个并发请求可能同时通过查重、同时插入，
+其中一个触发数据库唯一约束 → `IntegrityError` → 默认变成 500。
+
+修法：让数据库约束做最终裁判，并接住异常：
+
+```python
+try:
+    db.commit()
+except IntegrityError:
+    db.rollback()                  # 必须！失败事务不清掉，后续查询会 PendingRollbackError
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="username already taken",
+    ) from None                    # 不把数据库原始错误栈暴露出去
+```
+
+`IntegrityError` 是笼统的（外键、非空、其他唯一约束都抛它）；这张表只有 username
+一个唯一约束，所以可以放心当 409 处理。预检查留不留都行：留 = 常见情况走快路径，
+不留 = 只剩数据库一条真理来源。
 
 ---
 
@@ -263,6 +349,16 @@ if todo is None:
 - **原因**：`setattr` 能往任意对象挂属性所以没报，直到 `db.refresh()` 拿 `ScalarResult` 去问 SQLAlchemy「这是哪张表」才炸；
 - **解决**：同样换 `db.scalar`。
 
+### 问题 7：注册提示拼写错误（测试绿没发现）
+
+- **现象**：`main.py` 全绿，但跑真实请求看到的响应是
+  `{"detail": "useranme alerady taken"}`；
+- **原因**：测试只断言 `r.status_code == 409`，没看 `detail` 的内容；
+- **解决**：两处都改成 `"username already taken"`；
+- **教训**：**测试绿 ≠ 无 bug**（第三次 —— 学习项 13 的 verify 返回值丢失、
+  学习项 16 的哨兵被写成 `"null"`）。测试只覆盖它断言过的东西，
+  用户可见的字符串要自己核对。
+
 > **这一串错误的共同根**：以为「手里拿到的东西」和「实际拿到的东西」一样。
 > 每次报错都先读最后一行异常类型 + 信息，它通常直接把答案写出来了（`got <function select>`、`input: <ScalarResult>`、`'NoneType'`）。
 
@@ -280,6 +376,9 @@ if todo is None:
 | `setattr(None, ...)` | `AttributeError: 'NoneType' object has no attribute ...` | 先判 `if todo is None: raise 404` |
 | `db.refresh(ScalarResult)` | `UnmappedInstanceError: ... not mapped` | 传模型对象 |
 | 手工 `schemas.TodoRead(id=..., ...)` | 不漏但容易忘字段 | `return todo`（`from_attributes`） |
+| 以为声明了 `response_model` 就不用产出数据 | 不报错，但逻辑错 / 500 | `response_model` 只校验和序列化，数据要自己 return |
+| `db.commit()` 失败不 `rollback` | 后续查询 `PendingRollbackError` | `except IntegrityError: db.rollback()` |
+| 用户可见字符串写错（`useranme`） | 测试绿但接口文案错 | 断言 `detail`；真实请求看响应 |
 
 ---
 

@@ -23,6 +23,23 @@ from deps import get_current_user
 router = APIRouter(prefix="/todos", tags=["todos"])
 
 
+def _get_owned_todo(todo_id: int, current_user: models.User, db: Session) -> models.Todo:
+    """
+    按 (id, user_id) 查一条 todo，查不到就直接 404。
+
+    「不存在」和「是别人的」在这里合并成同一种结果：
+    不告诉调用方（和攻击者）这条数据到底存不存在。
+    """
+    stmt = select(models.Todo).where(
+        models.Todo.id == todo_id,
+        models.Todo.user_id == current_user.id,
+    )
+    todo = db.scalar(stmt)
+    if todo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="todo not found")
+    return todo
+
+
 # ===== POST /todos =====
 # TODO 2：创建
 @router.post("", response_model=schemas.TodoRead, status_code=status.HTTP_201_CREATED)
@@ -37,8 +54,8 @@ def create_todo(
           → add / commit / refresh / return
     """
     todo = models.Todo(
-        title = payload.title,
-        user_id = current_user.id
+        title=payload.title,
+        user_id=current_user.id,
     )
     db.add(todo)
     db.commit()
@@ -77,11 +94,7 @@ def get_todo(
     注意：裸 id 是内置函数，裸 user_id 是 NameError —— 列必须写成 models.Todo.xxx
     别人的 todo 也是 404（不是 403，别泄露"存在但无权"）
     """
-    stmt = select(models.Todo).where(models.Todo.id == todo_id, models.Todo.user_id == current_user.id)
-    todo = db.scalar(stmt)
-    if todo is None:
-        raise HTTPException(404, "todo not found")
-    return todo
+    return _get_owned_todo(todo_id, current_user, db)
 
 
 # ===== PATCH /todos/{todo_id} =====
@@ -97,10 +110,7 @@ def update_todo(
     同上先按 (models.Todo.id, models.Todo.user_id) 查 → 404
     → model_dump(exclude_unset=True) → setattr → commit / refresh / return
     """
-    stmt = select(models.Todo).where(models.Todo.id == todo_id, models.Todo.user_id == current_user.id)
-    todo = db.scalar(stmt)
-    if todo is None:
-        raise HTTPException(404, "todo not found")
+    todo = _get_owned_todo(todo_id, current_user, db)
     data = payload.model_dump(exclude_unset=True)
     for key, val in data.items():
         setattr(todo, key, val)
@@ -119,10 +129,7 @@ def delete_todo(
     """
     同上查 → 404 → db.delete(todo) → commit → return None
     """
-    stmt = select(models.Todo).where(models.Todo.id == todo_id, models.Todo.user_id == current_user.id)
-    todo = db.scalar(stmt)
-    if todo is None:
-        raise HTTPException(404, "todo not found")
+    todo = _get_owned_todo(todo_id, current_user, db)
     db.delete(todo)
     db.commit()
     return None

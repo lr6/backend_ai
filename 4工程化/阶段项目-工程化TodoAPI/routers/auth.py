@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import JWTError
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import models
@@ -38,19 +39,22 @@ def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
          ⚠️ 不能把 payload.model_dump() 整个塞进去，里面有明文 password
       3. db.add / db.commit / db.refresh / return
     """
-    u = db.scalar(select(models.User).where(models.User.username == payload.username))
-    if u is None:
-        user = models.User(
-            username = payload.username,
-            email = payload.email,
-            password_hash = security.hash_password(payload.password)
-        )
-        db.add(user)
+    if db.scalar(select(models.User).where(models.User.username == payload.username)):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="username already taken")
+    user = models.User(
+        username=payload.username,
+        email=payload.email,
+        password_hash=security.hash_password(payload.password),
+    )
+    db.add(user)
+    try:
         db.commit()
-        db.refresh(user)
-        return user
-    raise HTTPException(409, "username already taken")
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="username already taken") from None
 
+    db.refresh(user)
+    return user
 
 # ===== POST /auth/login =====
 # TODO 3：实现登录
@@ -71,10 +75,10 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     user = db.scalar(select(models.User).where(models.User.username == form.username))
     if user is None or not security.verify_password(form.password, user.password_hash):
         raise auth_error()
-    return schemas.TokenPair(
-        access_token=security.create_access_token(user.id),
-        refresh_token=security.create_refresh_token(user.id)
-    )
+    return {
+        "access_token": security.create_access_token(user.id),
+        "refresh_token": security.create_refresh_token(user.id),
+    }
 
 # ===== POST /auth/refresh =====
 # TODO 4：实现刷新
@@ -94,7 +98,7 @@ def refresh(payload: schemas.RefreshRequest, db: Session = Depends(get_db)):
     user = db.get(models.User, claims["user_id"])
     if user is None:
         raise auth_error("invalid refresh token")
-    return schemas.TokenPair(
-        access_token=security.create_access_token(user.id),
-        refresh_token=security.create_refresh_token(user.id)
-    )
+    return {
+        "access_token": security.create_access_token(user.id),
+        "refresh_token": security.create_refresh_token(user.id),
+    }
