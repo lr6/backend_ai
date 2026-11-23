@@ -509,3 +509,81 @@ cd "4工程化/阶段项目-工程化TodoAPI"
 ../../.venv/bin/uvicorn main:app --port 8099
 redis-cli -n 0 --scan --pattern 'todo*'
 ```
+
+---
+
+# Task 3 · pytest 测试体系
+
+## 一、测试分层：这 32 个测试是什么级别
+
+| 层级 | 是什么 | 我们有没有 |
+|------|--------|-----------|
+| 单元测试 | 单个函数，外部依赖全 mock | 基本没有（测的都是接口） |
+| **集成测试** | 多个真实组件一起跑（API + DB + Redis） | ✅ 本项目全部 |
+| 端到端 E2E | 真实浏览器/网络/部署环境 | 没有（那是 Task 4/5 的事） |
+
+`TestClient` 是**进程内**调用 ASGI app：不走网络、不起 uvicorn，但路由、依赖注入、中间件、数据库、Redis 全是真的。所以它属于集成测试，不是单元测试。
+
+## 二、测试环境隔离（最重要的知识点）
+
+```
+开发环境                     测试环境
+eng_todo_db          →      eng_todo_test_db
+Redis db 0           →      Redis db 14
+```
+
+实现方式有两层：
+
+1. **环境变量 + import 顺序**：`conftest.py` 在所有业务 import 之前写
+   `os.environ["DATABASE_URL"] = ...`，因为 `config.py` 是「import 那一刻」读环境变量，之后再改环境变量没用。
+2. **`app.dependency_overrides[get_db] = override_get_db`**：依赖注入的替换点，`key` 必须是函数对象，`yield` 后要 `clear()`（app 是全进程单例）。
+
+## 三、fixture 设计
+
+| fixture | scope | 作用 |
+|---------|-------|------|
+| `prepare_database` | session, autouse | 开始：drop_all + create_all；结束：drop_all + dispose |
+| `clean_data` | function, autouse | 每个测试前 TRUNCATE todos + flushdb |
+| `client` | function | 覆盖 get_db + TestClient，结束 clear |
+| `db_session` | function | 测试自己直连测试库（验缓存命中用） |
+| `auth` / `other_auth` | session | 只注册+登录一次，返回 headers / user_id |
+
+### 一个必须理解的冲突：scope 不匹配
+
+- `auth` 是 **session** scope：token 里的 user_id 固定。
+- 如果 `clean_data` 每个测试都 `TRUNCATE users`，第二个测试开始时该用户已不存在 → 所有登录测试 401。
+- 解决：**只清 todos，不清 users**。user 行留着无害，会话结束 drop_all 一并清掉。
+- 另一条路：auth 改 function scope，每测试注册一次 —— 慢（bcrypt cost=12 每次约 0.25s）、彻底隔离。这里选性能。
+
+> 通用规则：session-scoped fixture 依赖的数据，不能被 function-scoped fixture 清掉。
+
+## 四、怎么证明「真的命中了缓存」
+
+缓存测试最容易写成「测了等于没测」。本项目的做法：
+
+1. GET 一次 → 缓存回填
+2. **绕过 API**，用 `db_session` 直接 `UPDATE todos SET title = '数据库里的新标题'`
+3. 再 GET 一次：
+   - 返回**旧标题** → 读的是缓存 ✅
+   - 返回新标题 → 根本没走缓存 ❌
+
+同样的思路可以验哨兵、验双删（`redis_client.exists(key) == 0`）、验 TTL（`0 < ttl <= TTL`）。
+
+## 五、32 个测试覆盖了什么
+
+| 文件 | 数量 | 覆盖 |
+|------|------|------|
+| test_smoke.py | 4 | 地基自检：401、auth fixture、测试间隔离 |
+| test_auth.py | 8 | 注册（成功/重复 409/短密码 422）、登录（成功/错密码 401 + WWW-Authenticate/不存在同提示）、刷新（成功/access 冒充 refresh 401）、未认证 401 |
+| test_todos.py | 9 | CRUD、伪造 user_id 被忽略、只列自己的、exclude_unset、done=False 生效、204 无 body、IDOR 读改删全 404 且 B 数据未动 |
+| test_cache.py | 11 | 单条/列表回填、命中（改库验证）、空列表缓存、PATCH/DELETE 双删、CREATE 删列表、哨兵（值 "null"、ttl、二次 404）、越权哨兵写在自己 key 空间 |
+
+## 六、运行方式
+
+```bash
+cd "4工程化/阶段项目-工程化TodoAPI"
+../../.venv/bin/python -m pytest tests/ -q        # 必须 -m pytest，cwd 进 sys.path 才能 import 项目模块
+../../.venv/bin/python -m pytest tests/test_cache.py -v
+```
+
+为什么用 `python -m pytest` 而不是直接 `pytest`：`-m` 会把当前目录加进 `sys.path`，`import cache / models` 才能找到。直接跑 `pytest` 时 pytest 只把 tests/ 目录加进去，导入会失败。

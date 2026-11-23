@@ -11,11 +11,11 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第四阶段：工程化 |
-| **当前学习项** | 第四阶段项目：工程化 Todo API（🔄 进行中，Task 1–2 完成，下一步 Task 3 pytest 测试体系）|
+| **当前学习项** | 第四阶段项目：工程化 Todo API（🔄 进行中，Task 1–3 完成，下一步 Task 4 Nginx 反向代理）|
 | **总进度** | 26 / 32 |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅、第二阶段 ✅、第三阶段 ✅ |
 | **最近学习日期** | 2026-11-23 |
-| **最近学习内容** | 阶段项目 Task 2 ✅（cache.py 缓存层 + Cache-Aside 接进 todos 路由 + 写时删缓存 + 哨兵，11 步端到端全绿）|
+| **最近学习内容** | 阶段项目 Task 3 ✅（pytest 测试体系：独立测试库 + Redis db14 + 认证 fixture，32 个测试全绿）|
 
 ---
 
@@ -108,7 +108,7 @@
 
 | 阶段项目 | 状态 | 完成日期 |
 |----------|------|---------|
-| 工程化 Todo API | 🔄 | Task 1 ✅（2026-11-18）、Task 2 ✅（2026-11-23）；下一步 Task 3 pytest |
+| 工程化 Todo API | 🔄 | Task 1 ✅（2026-11-18）、Task 2 ✅（2026-11-23）、Task 3 ✅（2026-11-23）；下一步 Task 4 Nginx |
 
 ---
 
@@ -192,6 +192,7 @@
 | 2026-11-15 | 19 Nginx ✅ 完成 | 练习 1–5 全通（12 条断言）+ Review。环境：brew 装 nginx 1.31.8，练习目录 `4工程化/19Nginx/`（app.py 回声服务 + static + nginx.conf + check.py 自动起 2 个 uvicorn 和 nginx 跑断言）。核心：uvicorn=监听端口的服务器、FastAPI=ASGI 可调用对象，同进程共存；正向代理替客户端出头 vs 反向代理替服务器出头（判断标准：代理谁）；Nginx 五层结构 main/events/http/server/location；`proxy_pass` 末尾带 `/` 剥前缀（`/api/hello`→`/hello`）；`proxy_set_header Host/X-Real-IP/X-Forwarded-For`（XFF 用 `$proxy_add_x_forwarded_for` 追加不覆盖）；upstream 默认轮询、必须写在 http 块；location 优先级 `=` > `^~` > 正则（按书写顺序）> 最长前缀；`try_files $uri $uri/ /index.html` = Vue Router history 模式生产必备。探底：Vite proxy 答对（补充是 dev server 转发、同源所以没 CORS）；跳过「为何 uvicorn 前要有 Nginx」转而**主动提问 uvicorn 是什么**；检查题「uvicorn 崩了 app 还在吗」答成「uvicorn 不知道谁在监听」→ 纠正监听者就是 uvicorn；正/反向判断标准答对。踩坑：练习 4 `serve` 拼写 + `upstream{...};` 多分号；**练习 5 三轮才过**——`return "文本"` 裸字符串不合法、`return 200 "..."` 缺分号（报错行号漂到下一行 `}`）、`location /img` 没加 `^~` 被 `~* \.png$` 抢走、响应体写成正则表达式本身。Review：清理过时 TODO 注释、`/img`→`/img/`；指出正则抢 `/api/xxx.png` 的生产隐患。笔记见 `4工程化/19Nginx/notes.md`。 |
 | 2026-11-18 | 阶段项目 工程化 Todo API · Task 1 ✅ 完成 | 新建 `eng_todo_db`，1A `config.py`（os.getenv + 默认值 + importlib.reload 测试）/ `database.py`（从 config 读 URL）→ 1B `models.py` 加 `password_hash`、`schemas.py`（72 = bcrypt 上限）、`security.py` 密钥从 config 读、Alembic 建表（`alembic_version = aa893607ca00`）→ 1C 拆包：`deps.py`（`auth_error` 返回异常对象、`get_current_user` 校验 type=access）、`routers/auth.py`、`routers/todos.py`（所有权 404）、`main.py` 组装。核心概念：config 是依赖树根、`database.py` 不 import models 防循环、`deps.py` 避免 router 互相依赖、`db.scalar`（一条或 None）vs `db.scalars`（结果集）、`exclude_unset` 区分「没传」和「传了 False」。**纠错链**：裸 `id`=内置函数静默 False、裸 `user_id`=NameError → 语句构造没赋值 `db.scalars(select)`=ArgumentError → `scalars` 当单条=`ResponseValidationError` → dict 直接 for=`too many values to unpack`（缺 `.items()`）→ `update_todo` 漏 404 判断=`setattr(None, ...)` → `delete_todo` 仍用 `scalars`=`UnmappedInstanceError`。**Claude 的锅**：练习 docstring 伪代码漏写 `models.Todo.` 前缀，误导用户照抄。Review：`smtp`→`stmt`、`create_todo` 手工构造 TodoRead 改为 `return todo`、行尾空格。**追加 Review**：登录/刷新改 `return dict`（`token_type` 由 response_model 默认值补）、抽出 `_get_owned_todo`、409/404 统一用 `status` 常量、关键字参数空格、注册加 `IntegrityError` + `rollback` + `from None` 并发兜底；注册提示拼写 `useranme alerady`（测试只断言状态码，未覆盖 detail）。**主动提问**：① 声明了 `response_model` 为什么还要 `return` 构造对象 → 回答「response_model 只校验/序列化/出文档，不生产数据」；② `=` 空格规则 → 绑定名字加空格、关键字参数不加、有注解的默认值加。笔记见 `4工程化/阶段项目-工程化TodoAPI/notes.md`。 |
 | 2026-11-23 | 阶段项目 工程化 Todo API · Task 2 ✅ 完成 | 续上次（cache.py 已写好 12 断言全绿但路由未接）。本轮把缓存接进 `routers/todos.py`：单条/列表读路径 Cache-Aside、三种返回值（CACHE_MISS/None/dict）、写路径先 commit 再删缓存（POST 删列表、PATCH/DELETE 删单条+列表）。探底：三种返回值处理全对；PATCH 后要删列表 key 猜到了但**说不出原因** → 补讲「删所有装过这条数据的 key」。纠错链：`elselif`（还专门问正确拼写）→ `cache = cache.get_json(key)` **变量名覆盖模块** → `elif cache is None` 哨兵分支死代码 → `db.get(todo_id)` **丢了 user_id = IDOR**（用户跳过提问，Claude 直答）→ ORM 对象塞 Redis（TypeError）→ 末尾 `return cache_todo` 分叉不闭合。用户明确要求「直接把代码写好」后 Claude 完整实现并逐行讲解。端到端 11 步全绿：回填 ttl=300、PATCH 双删、B 读 A 的 404+哨兵 ttl=60、DELETE 双删、空列表 `[]` 也进缓存（验证不能用 `if cached:`）。Review：待抽 `_find_owned_todo` 消除重复查询。笔记见 `4工程化/阶段项目-工程化TodoAPI/notes.md` Task 2 段。 |
+| 2026-11-23 | 阶段项目 工程化 Todo API · Task 3 ✅ 完成 | 测试体系 `tests/`：conftest（env 在 import 前设置 → eng_todo_test_db + Redis db14；prepare_database session 建表；clean_data 每测试 TRUNCATE todos + flushdb；client 覆盖 get_db；auth/other_auth session 注册一次；db_session 直连测试库）。32 个测试全绿（smoke 4 / auth 8 / todos 9 / cache 11）。关键知识点：TestClient=进程内集成测试；依赖覆盖；fixture scope 冲突（session 的 auth 依赖 users 不能被每测试清掉 → 只 TRUNCATE todos）；证明缓存命中的手法=绕过 API 直接改库再看 API 返回旧值；空列表 [] falsy 也要算缓存命中；`python -m pytest` 才能把 cwd 加进 sys.path。用户明确说不想学怎么写测试，只要求看知识点。笔记见 `4工程化/阶段项目-工程化TodoAPI/notes.md` Task 3 段。 |
 | 2026-11-15 | 20 CI/CD ✅ 完成 | 练习 1–4 完成，GitHub 真实运行 CI #1 全绿（test ✅ deploy ✅）。核心：CI=push 自动拉代码/装依赖/lint/test/build；CD 的 Continuous Delivery（自动到可发布，人工上线）vs Continuous Deployment（全自动），Vercel 默认属于后者；GitHub Actions 模型 workflow→job→steps，runner 是 GitHub 临时 Linux VM、用完即销毁，所以部署要用 SSH/镜像/self-hosted runner；steps 顺序执行且隐式 `if: success()`，某步失败后续跳过，`needs: test` 等的是成功，失败则下游 skipped；`if: always()/failure()`、`continue-on-error` 是反例开关；`uses` 用 action（必须带 @版本）、`with` 传参、`run: |` 写多行脚本；`${{ }}` 表达式、`secrets.XXX` 未配置时为空字符串不报错。探底：CI 跑在 GitHub 的 Linux 机器答对；CI/CD 定义全不知道 → 直接讲；Vercel 自动上线判为 Deployment 答对；检查题「step3 失败 step4/deploy 会不会跑」答「不会，不知道为什么」→ 补隐式 success 语义。踩坑：**打开 check.py 当练习文件找不到 on**（路径混淆）；练习 1 写成 `on: push, pull_request, workflow_dispatch` 被当成一个字符串；练习 2 `with:` 和 `-` 对齐导致 `expected <block end>` + `with: python-version: ...` 同行嵌套 key；用户明确要求直接给答案 → Claude 写完整份并逐段讲解。**Claude 自己的 bug**：`check.py --wait` 在首个 run 出现前直接返回，已修。验证方式：公开 API 轮询 `check.py --remote --wait`，无需 gh/token。笔记见 `4工程化/20CICD/notes.md`。 |
 
 ---
