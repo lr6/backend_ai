@@ -587,3 +587,92 @@ cd "4工程化/阶段项目-工程化TodoAPI"
 ```
 
 为什么用 `python -m pytest` 而不是直接 `pytest`：`-m` 会把当前目录加进 `sys.path`，`import cache / models` 才能找到。直接跑 `pytest` 时 pytest 只把 tests/ 目录加进去，导入会失败。
+
+---
+
+# Task 4 · Nginx 反向代理
+
+## 一、最终配置在干什么
+
+```
+浏览器 ──> nginx :8088
+            ├─ /api/...  ──转发──> upstream todo_api ──轮询──> uvicorn :8001 / :8002
+            └─ 其他路径   ──try_files──> nginx/static/（找不到就回 index.html）
+```
+
+| 配置块 | 作用 | 关键点 |
+|--------|------|--------|
+| `upstream todo_api` | 两个后端实例 | 必须写在 `http {}` 里；默认轮询 |
+| `location /api/` | API 转发 | `proxy_pass http://todo_api/;` 末尾 `/` 剥前缀 |
+| `proxy_set_header` 三件套 | 透传客户端信息 | `Host $host` / `X-Real-IP $remote_addr` / `X-Forwarded-For $proxy_add_x_forwarded_for` |
+| `location /` | 静态文件 + SPA 回退 | `try_files $uri $uri/ /index.html;` |
+
+## 二、知识点
+
+### 1. proxy_pass 末尾的 `/` 是「替换」而不是「追加」
+
+- `proxy_pass http://todo_api/;` → `/api/auth/login` 的后端路径 = `/auth/login`（前缀被 `/` 替换）
+- `proxy_pass http://todo_api;`（无尾斜杠）→ 后端收到 `/api/auth/login`
+
+### 2. 三个透传头的作用
+
+| 头 | 不配的后果 |
+|----|-----------|
+| `Host $host` | 后端看到 `127.0.0.1:8001`，暴露内网结构；生成绝对 URL / 校验域名时会错 |
+| `X-Real-IP $remote_addr` | 后端拿不到真实客户端 IP（日志、限流、风控全失效） |
+| `X-Forwarded-For $proxy_add_x_forwarded_for` | 同上；用 `$proxy_add_x_forwarded_for` 而不是 `$remote_addr` 是为了**追加**经过的代理链 |
+
+### 3. try_files 的三个参数
+
+`try_files $uri $uri/ /index.html;`
+1. `$uri` —— 原样路径的真实文件（`/hello.txt`、`/assets/app.js`）
+2. `$uri/` —— 当目录找 index
+3. `/index.html` —— 前导斜杠是**内部重定向**，让请求重新走 location 匹配；写 `index.html` 没有前导斜杠会被当成相对文件名
+
+### 4. 为什么 `/api/nope` 返回 404 JSON 而不是 index.html
+
+location 匹配规则：`/api/` 是更长的前缀，`/api/nope` 先命中它 → 转发给后端 → 后端 404。不会落到 `location /` 的 SPA 回退。这是正确行为（前端路由不该吞掉 API 的 404）。
+
+### 5. upstream 轮询的验证方式
+
+`wrapped_app.py` 每个实例往响应里加 `X-Instance: api-1/api-2`，连续 6 次请求观察两个实例都出现。
+
+## 三、验证脚本架构（check.py）
+
+```
+prepare_tables()     python -c 建测试库表（pytest 结束会 drop）
+flush_test_redis()   清 Redis db 14
+start_uvicorn(8001,"api-1") / (8002,"api-2")
+nginx -t             先语法检查，失败直接返回
+nginx 启动 :8088
+12 项断言：静态 4 / API 转发 5 / 请求头 3 / 轮询 1
+finally: nginx -s stop + 终止 uvicorn + 清 Redis
+```
+
+## 四、本次纠错全记录
+
+| # | 现象 | 原因 | 正确写法 |
+|---|------|------|---------|
+| 1 | nginx -t：`line 41 unexpected "}"` | L40 `server 127.0.0.1:8002` **缺分号**，报错行号漂到下一行 | `;` 结尾 |
+| 2 | `unknown directive "ocation"` | 拼写错误（与学习项 19 的 `serve` 同款） | `location` |
+| 3 | L66 proxy_pass 缺分号 | 同 #1 | `;` |
+| 4 | L82 try_files 缺分号 | 同 #1 | `;` |
+| 5 | proxy_pass 指向 `127.0.0.1:8000/` | 8000 没人监听（实例是 8001/8002）→ 502；直连单实例还会让 upstream 失效 | `http://todo_api/` |
+| 6 | 三个 proxy_set_header 全没写 | Host 暴露内网端口；X-Real-IP / XFF 为 None | 三件套补齐 |
+| 7 | `try_files index index.html` | `index` 被当成文件名；`index.html` 缺前导 `/` | `$uri $uri/ /index.html` |
+| 8 | `X-Request-IP` 头名写错 | 后端读的是 `x-real-ip`；HTTP 头名是关键契约，大小写不敏感但名字必须对 | `X-Real-IP` |
+| 9 | L68 改完头名后缺分号 | nginx 报 `line 69 invalid number of arguments` —— 又是报错行上一行的问题（第 4 个分号） | `;` |
+
+**分号问题本轮出现 4 次**，「报错行上一行缺 `;`」这条规律必须记住。
+
+## 五、常用命令
+
+```bash
+cd "4工程化/阶段项目-工程化TodoAPI"
+
+# 语法检查（不起服务）
+nginx -t -p "$PWD/nginx" -c "$PWD/nginx/nginx.conf"
+
+# 完整验证（自动起 2 uvicorn + nginx，结束自动清理）
+../../.venv/bin/python nginx/check.py
+```

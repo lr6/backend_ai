@@ -14,7 +14,7 @@
 | 1C | **依赖与路由拆分** — deps.py + routers/ + main.py 组装 | ✅ |
 | 2 | **Redis 缓存层** — cache.py + Cache-Aside + 写时删缓存 + 哨兵 | ✅ |
 | 3 | **pytest 测试体系** — 独立测试库、Redis db=14、认证 fixture | ✅ |
-| 4 | **Nginx 反向代理** — /api 转发、SPA 兜底、upstream 双实例 | ⬜ |
+| 4 | **Nginx 反向代理** — /api 转发、SPA 兜底、upstream 双实例 | ✅ |
 | 5 | **CI/CD** — GitHub Actions 起 PostgreSQL + Redis service 跑测试 | ⬜ |
 
 ## 目录结构（目标）

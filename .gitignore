@@ -53,3 +53,7 @@ htmlcov/
 # Claude
 .claude/todos.json
 AGENTS.md
+
+# Nginx 运行时文件（pid / 日志）
+**/nginx/runtime/
+**/runtime/
