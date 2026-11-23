@@ -1,0 +1,28 @@
+# 阶段项目 · 工程化 Todo API — 运行 + 测试依赖
+# 本地安装： pip install -r requirements.txt
+# 版本与开发环境保持一致（bcrypt 必须锁 4.0.x，见学习项 13）
+
+# Web
+fastapi==0.141.1
+uvicorn==0.52.4
+python-multipart==0.0.33
+
+# 数据校验
+pydantic==2.13.4
+
+# 数据库
+SQLAlchemy==2.0.52
+psycopg[binary]==3.3.4
+alembic==1.19.1
+
+# 缓存
+redis==8.1.0
+
+# 认证
+python-jose==3.5.0
+passlib==1.7.4
+bcrypt==4.0.1
+
+# 测试
+pytest==9.2.0
+httpx==0.28.1

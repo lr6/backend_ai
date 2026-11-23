@@ -14,8 +14,10 @@
 import os
 from uuid import uuid4
 
-os.environ["DATABASE_URL"] = "postgresql+psycopg:///eng_todo_test_db"
-os.environ["REDIS_URL"] = "redis://127.0.0.1:6379/14"
+# setdefault：外部（比如 CI）已经设置就用外部的，本地没设才用默认值。
+# 写成 os.environ[...] = ... 会把 CI 的 DATABASE_URL 强行盖成本机 socket，CI 必挂。
+os.environ.setdefault("DATABASE_URL", "postgresql+psycopg:///eng_todo_test_db")
+os.environ.setdefault("REDIS_URL", "redis://127.0.0.1:6379/14")
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -23,7 +25,7 @@ from sqlalchemy import create_engine, text  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 import cache  # noqa: E402
-import models  # noqa: E402，import 一次让表注册到 Base.metadata
+import models  # noqa: E402,F401 —— import 一次让表注册到 Base.metadata
 from database import Base, get_db  # noqa: E402
 from main import app  # noqa: E402
 

@@ -6,7 +6,7 @@ from sqlalchemy import pool
 from alembic import context
 
 import config as app_config
-import models
+import models  # noqa: F401 —— import 一次让表注册到 Base.metadata
 from database import Base
 
 
