@@ -1,4 +1,4 @@
-# 阶段项目 · 工程化 Todo API — 学习笔记（Task 1）
+# 阶段项目 · 工程化 Todo API — 学习笔记（Task 1–2）
 
 > 完成日期：2026-11-18（Task 1A / 1B / 1C）
 > 数据库：`eng_todo_db`（`alembic_version = aa893607ca00`）
@@ -397,4 +397,115 @@ if todo is None:
 cd "4工程化/阶段项目-工程化TodoAPI"
 ../../.venv/bin/alembic current
 ../../.venv/bin/alembic upgrade head
+```
+
+---
+
+# Task 2 · Redis 缓存层（cache.py + 路由接入）
+
+## 一、cache.py 设计
+
+| 层 | 内容 |
+|----|------|
+| key 设计 | `todo:{user_id}:{todo_id}` 单条、`todos:user:{user_id}` 列表 —— **user_id 写进 key**，命中即已授权，不可能绕过所有权检查 |
+| 三种返回值 | `CACHE_MISS`（object() 标记，key 不存在）/ `None`（哨兵，确认不存在）/ `dict`·`list`（命中） |
+| `set_json` | `json.dumps` + `set(ex=ttl)`；`value=None` 就是写哨兵（`"null"` 字符串） |
+| TTL | 单条/列表 300s；哨兵 60s（确认不存在，短 TTL 防止数据后来被创建了还一直 404） |
+| `delete(*keys)` | 一次删多个，返回删除个数 |
+
+**为什么 `CACHE_MISS` 不能和 `None` 混用**：`None` 是「查过，确认不存在」，`CACHE_MISS` 是「没查过」。混用会让不存在的 id 每次都查库（缓存穿透）。
+
+## 二、路由接入（routers/todos.py）
+
+### 读路径 Cache-Aside
+
+```python
+key = cache.todo_key(current_user.id, todo_id)
+cached = cache.get_json(key)
+if cached is not cache.CACHE_MISS:   # 命中（含哨兵）
+    if cached is None:
+        raise HTTPException(404)      # 哨兵命中，不查库
+    return cached                     # dict，直接返回
+# 未命中 → 查库
+todo = db.scalar(select(...).where(id, user_id))
+if todo is None:
+    cache.set_json(key, None, ttl=cache.TTL_MISSING)   # 先写哨兵，再 404
+    raise HTTPException(404)
+data = schemas.TodoRead.model_validate(todo).model_dump()  # ORM → dict
+cache.set_json(key, data)
+return data
+```
+
+关键点：
+- 判断必须 `is not cache.CACHE_MISS`，**不能** `if cached:` —— 空列表 `[]` 是合法结果但 falsy，会被误判成未命中。
+- 查库步骤手写、不复用 `_get_owned_todo`：helper 查不到直接 raise，拿不到「查不到」分支去写哨兵。
+- ORM 对象不能进 Redis（`json.dumps` TypeError），先 `TodoRead.model_validate(todo).model_dump()`。
+
+### 写路径：先 commit，再删缓存
+
+| 操作 | 删哪些 key | 为什么 |
+|------|-----------|--------|
+| POST | `todos:user:{uid}` | 列表变了；单条 key 本来不存在 |
+| PATCH | `todo:{uid}:{id}` + `todos:user:{uid}` | **两个 key 都装过这条数据的副本** |
+| DELETE | `todo:{uid}:{id}` + `todos:user:{uid}` | 不删单条 → 删完还能从缓存读到「幽灵 todo」 |
+
+规则记法：**不是删「这条数据的 key」，而是删「所有装过这条数据的 key」。**
+
+## 三、探底问答
+
+| 问题 | 回答 | 结论 |
+|------|------|------|
+| `get_json` 三种返回值分别怎么处理 | `CACHE_MISS` 查库、`None` 直接 404、`dict` 直接返回 | ✅ 正确 |
+| PATCH 后除了单条 key 还要删哪个、为什么 | 猜到「user 那条」列表，但**不知道原因** | ❌ 补讲：列表缓存里是完整副本 |
+
+## 四、纠错全记录（用户手写 → Claude 重写）
+
+| # | 现象 | 原因 | 知识点 |
+|---|------|------|--------|
+| 1 | `elselif` | 拼写错误 → SyntaxError；还专门问「正确的是啥」 | `else` + `if` = `elif` |
+| 2 | `cache = cache.get_json(key)` 后 `cache.CACHE_MISS` 报 AttributeError | **变量名把模块覆盖**（同名遮蔽） | 模块名不要当变量名，用 `cached` |
+| 3 | `db.get(todo_id)` | ① 丢掉 `user_id` 过滤 = **IDOR 越权**（A 能读 B 的 todo）；② 签名应为 `db.get(实体类, 主键)` | 复习第三阶段 IDOR；db.get 用法 |
+| 4 | `cache.set_json(key, todo, ...)` 存 ORM 对象 | `json.dumps(Todo)` → TypeError | ORM → `model_validate().model_dump()` |
+| 5 | `elif cache is None` | `cache` 是模块，永远不为 None，哨兵分支死代码；未命中时把 `CACHE_MISS` 对象 return 出去 → ResponseValidationError | 哨兵分支必须比较 `cached` |
+| 6 | 末尾 `return cache_todo` | 未命中查库后也会走到，逻辑分叉不闭合 | 三条路各自 return |
+| 7 | `return dict` | `dict` 是内置类型不是变量 | 返回值要返回数据本身 |
+
+用户明确说「你直接把代码写好」后，Claude 完整实现并逐行讲解；`db.get` 的 IDOR 问题用户跳过了提问，由 Claude 直接给出答案。
+
+## 五、端到端验证（uvicorn :8099 + curl + redis-cli，11 步全过）
+
+| 步骤 | 结果 | 验证点 |
+|------|------|--------|
+| 首次 GET 单条 | Redis 出现 key，ttl=300 | 未命中查库回填 |
+| 二次 GET | 200 | 命中 |
+| GET 列表 | 列表 key 回填 ttl=300 | 列表读路径 |
+| PATCH | 两个 key 都存在=0 | 写时删缓存 |
+| PATCH 后 GET | 标题是「改」 | 回填新值 |
+| B 读 A 的 todo | 404，B 名下哨兵 `null` ttl=60 | 所有权 + 哨兵 |
+| B 再读 | 404 | 哨兵命中不查库 |
+| DELETE | 两个 key 都消失 | 删除路径 |
+| 删后 GET | 404，哨兵 ttl=60 | 删除后哨兵 |
+| 空列表 | `[]` 进缓存 ttl=300 | falsy 不误判 |
+
+验证脚本：`/tmp/task2_e2e.sh`（临时文件，不入库）。
+
+## 六、踩坑速查
+
+| 错误写法 | 报错/后果 | 正确写法 |
+|---------|----------|---------|
+| `elselif` | SyntaxError | `elif` |
+| `cache = cache.get_json(key)` | AttributeError（模块被覆盖） | `cached = cache.get_json(key)` |
+| `if cached:` 判未命中 | 空列表 [] 每次穿透查库 | `if cached is cache.CACHE_MISS:` |
+| `db.get(todo_id)` | IDOR 越权 / 参数错 | `select().where(id==, user_id==)` |
+| `set_json(key, todo)` | TypeError: not JSON serializable | `TodoRead.model_validate(todo).model_dump()` |
+| PATCH 只删单条 | 列表挂旧值 5 分钟 | 单条 + 列表一起删 |
+| 先删缓存再 commit | 未命中查库回填旧值 | **先 commit 再删** |
+
+## 七、常用命令（Task 2）
+
+```bash
+cd "4工程化/阶段项目-工程化TodoAPI"
+../../.venv/bin/python cache.py          # cache.py 自测
+../../.venv/bin/uvicorn main:app --port 8099
+redis-cli -n 0 --scan --pattern 'todo*'
 ```
