@@ -676,3 +676,82 @@ nginx -t -p "$PWD/nginx" -c "$PWD/nginx/nginx.conf"
 # 完整验证（自动起 2 uvicorn + nginx，结束自动清理）
 ../../.venv/bin/python nginx/check.py
 ```
+
+---
+
+# Task 5 · CI/CD（GitHub Actions + PostgreSQL + Redis）
+
+## 一、workflow 结构
+
+`.github/workflows/project-ci.yml`
+
+```
+on: push(master) / pull_request / workflow_dispatch
+job test（ubuntu-latest）
+  services:
+    postgres:16  → localhost:5432，POSTGRES_DB=eng_todo_test_db，health: pg_isready
+    redis:7      → localhost:6379，health: redis-cli ping
+  env:
+    DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:5432/eng_todo_test_db
+    REDIS_URL=redis://127.0.0.1:6379/14
+  steps:
+    checkout → setup-python 3.12（pip cache）→ pip install → ruff lint → pytest tests
+```
+
+## 二、知识点
+
+### 1. services = 和 runner 同网络的附属容器
+
+GitHub 的 runner 是临时 VM，里面没有 PG / Redis。`services` 让 GitHub 用 Docker 起这些容器，并映射到 runner 的 localhost。所以 `DATABASE_URL` 直接写 `127.0.0.1:5432`。
+
+### 2. health check 解决「容器起来了但还没就绪」
+
+PostgreSQL 从容器启动到能接受连接有几秒空窗。不配 health check，steps 可能先跑、连库失败。`options: --health-cmd ...` 让 GitHub 等健康再开始。
+
+### 3. 测试代码要「环境无关」——conftest 的 setdefault
+
+本地：
+
+```python
+os.environ["DATABASE_URL"] = "postgresql+psycopg:///eng_todo_test_db"   # ❌ 覆盖一切
+os.environ.setdefault("DATABASE_URL", "postgresql+psycopg:///eng_todo_test_db")  # ✅
+```
+
+`setdefault` 的语义：**有值就不动，没值才填默认**。CI 里 workflow 的 `env` 已经设好，测试不需要知道自己在哪运行。这是「测试能在本地和 CI 跑同一套」的关键。
+
+### 4. lint 放在 test 前面
+
+ruff（E9/F63/F7/F82 = 语法级、未定义名字；F401 = 未使用 import）几十毫秒跑完，能快速失败。测试要起服务、连库，慢得多。
+
+### 5. pip cache
+
+`setup-python` 的 `cache: pip` + `cache-dependency-path` 指向 requirements.txt，依赖没变时直接命中缓存，省 10~20 秒。
+
+### 6. CI 的 runner 是用完即焚的
+
+所以部署必须靠 SSH / 镜像 / self-hosted runner 把产物送出去，不能指望机器上留下的东西（学习项 20 讲过）。
+
+## 三、验证
+
+- 本地：`ruff check` 通过、32 个测试通过
+- 远程：push 后 GitHub Actions run `45178185293`，**34 秒**全部步骤 success
+  - 验证方式：公开 API `https://api.github.com/repos/lr6/backend_ai/actions/runs`，不需要 gh / token
+
+## 四、本 Task 的额外修正
+
+| 问题 | 原因 | 修正 |
+|------|------|------|
+| conftest 强行覆盖 env | CI 里的 DATABASE_URL 会被盖成本机 socket | `os.environ.setdefault` |
+| ruff F401（models 未使用） | `import models` 是**副作用导入**（注册表到 metadata），变量本身不用 | `# noqa: F401`（alembic/env.py、conftest.py） |
+| 依赖无清单 | CI 空机器不知道装什么、装哪个版本 | `requirements.txt` 锁版本（bcrypt 必须 4.0.1） |
+
+## 五、常用命令
+
+```bash
+# 本地模拟 CI 的 lint
+cd "4工程化/阶段项目-工程化TodoAPI"
+../../.venv/bin/ruff check --select E9,F63,F7,F82,F401 .
+
+# 看 GitHub 上的真实运行（公开 API）
+curl -s "https://api.github.com/repos/lr6/backend_ai/actions/runs?per_page=5" | jq '.workflow_runs[] | {name, status, conclusion, head_sha}'
+```
