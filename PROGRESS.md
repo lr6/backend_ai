@@ -11,12 +11,12 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第五阶段：架构与系统设计 |
-| **当前学习项** | 21 Docker — Dockerfile、docker-compose（⬜ 未开始）|
-| **总进度** | 主路线 **20 / 32**（第一至第四阶段全部完成） |
+| **当前学习项** | 22 Celery + Redis — 异步任务队列、定时任务（⬜ 未开始）|
+| **总进度** | 主路线 **21 / 32**（第一至第四阶段全部完成） |
 | **预科进度** | 第零阶段 **6 / 6** ✅ |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅、第二阶段 ✅、第三阶段 ✅、第四阶段 ✅ |
-| **最近学习日期** | 2026-11-23 |
-| **最近学习内容** | 阶段项目 Task 5 ✅（CI：GitHub Actions 起 PG + Redis，32 测试全绿，第四阶段收尾）|
+| **最近学习日期** | 2026-11-24 |
+| **最近学习内容** | 21 Docker ✅（镜像/容器/可写层、Dockerfile 缓存、.dockerignore、compose 三服务编排）|
 
 > **进度口径**：32 项指 `FRONTEND_TO_FULLSTACK.md` 里编号 1–32 的主路线；第零阶段 0.1–0.6 是 Python 预科，不在编号内，单独计 6/6。已学主题合计 20 + 6 = 26 个。
 
@@ -119,7 +119,7 @@
 
 | # | 状态 | 学习项 | 完成日期 | 笔记 |
 |---|------|--------|---------|------|
-| 21 | ⬜ | **Docker** — Dockerfile、docker-compose | — | — |
+| 21 | ✅ | **Docker** — Dockerfile、docker-compose | 2026-11-24 | 镜像/容器/VM、只读层+可写层（build vs run 分界线）、-p 映射、Dockerfile 六行 + 层缓存实测（0.0s vs 17.7s）、.dockerignore 与 .env 泄露、compose 服务名 DNS、healthcheck + service_healthy、命名卷持久化 |
 | 22 | ⬜ | **Celery + Redis** — 异步任务队列 | — | — |
 | 23 | ⬜ | **Monolith vs Microservices** — 架构取舍 | — | — |
 | 24 | ⬜ | **Database Indexes** — B-Tree、EXPLAIN ANALYZE | — | — |
@@ -199,6 +199,7 @@
 | 2026-11-23 | 阶段项目 工程化 Todo API · Task 4 ✅ 完成 | 用户自己写 nginx.conf（我提供 TODO 骨架 + check.py 验证脚本）。配置：upstream todo_api 双实例 8001/8002、location /api/ `proxy_pass http://todo_api/`（尾斜杠剥前缀）、三件套 proxy_set_header、location / `try_files $uri $uri/ /index.html`。12 项断言全绿（静态 4 / API 转发 5 / 头透传 3 / 轮询 1）。纠错：**分号漏了 4 次**（每次 nginx 报错行号都漂到下一行，规律「报错行的上一行」）；`ocation` 拼写；proxy_pass 指 8000（没人监听 + upstream 失效）；三件套全缺；`try_files index index.html` 参数错（`index` 当文件名、缺前导 `/`）；**头名写成 X-Request-IP**（后端读 x-real-ip，HTTP 头名大小写不敏感但名字是契约）。笔记见 `4工程化/阶段项目-工程化TodoAPI/notes.md` Task 4 段。 |
 | 2026-11-23 | 阶段项目 工程化 Todo API · Task 5 ✅ 完成 · 第四阶段收尾 ✅ | 新增 `.github/workflows/project-ci.yml`：services postgres:16 + redis:7（health check 等就绪）、env 指向容器、ruff lint 前置、pytest 32 测试。`requirements.txt` 锁版本。**关键修正**：conftest 把 env 从强行覆盖改为 `setdefault` —— 否则 CI 的 DATABASE_URL 被盖成本机 socket 必挂；ruff F401 用 `# noqa: F401` 标记 side-effect import。本地 lint+测试全绿后 push，GitHub run 45178185293 全部步骤 success（34 秒）。第四阶段 5 个学习项 + 阶段项目全部完成。 |
 | 2026-11-15 | 20 CI/CD ✅ 完成 | 练习 1–4 完成，GitHub 真实运行 CI #1 全绿（test ✅ deploy ✅）。核心：CI=push 自动拉代码/装依赖/lint/test/build；CD 的 Continuous Delivery（自动到可发布，人工上线）vs Continuous Deployment（全自动），Vercel 默认属于后者；GitHub Actions 模型 workflow→job→steps，runner 是 GitHub 临时 Linux VM、用完即销毁，所以部署要用 SSH/镜像/self-hosted runner；steps 顺序执行且隐式 `if: success()`，某步失败后续跳过，`needs: test` 等的是成功，失败则下游 skipped；`if: always()/failure()`、`continue-on-error` 是反例开关；`uses` 用 action（必须带 @版本）、`with` 传参、`run: |` 写多行脚本；`${{ }}` 表达式、`secrets.XXX` 未配置时为空字符串不报错。探底：CI 跑在 GitHub 的 Linux 机器答对；CI/CD 定义全不知道 → 直接讲；Vercel 自动上线判为 Deployment 答对；检查题「step3 失败 step4/deploy 会不会跑」答「不会，不知道为什么」→ 补隐式 success 语义。踩坑：**打开 check.py 当练习文件找不到 on**（路径混淆）；练习 1 写成 `on: push, pull_request, workflow_dispatch` 被当成一个字符串；练习 2 `with:` 和 `-` 对齐导致 `expected <block end>` + `with: python-version: ...` 同行嵌套 key；用户明确要求直接给答案 → Claude 写完整份并逐段讲解。**Claude 自己的 bug**：`check.py --wait` 在首个 run 出现前直接返回，已修。验证方式：公开 API 轮询 `check.py --remote --wait`，无需 gh/token。笔记见 `4工程化/20CICD/notes.md`。 |
+| 2026-11-24 | 21 Docker ✅ 完成 | 两个练习全绿（练习 1 Dockerfile 5 项断言，练习 2 compose 7 项断言）。核心：镜像只读层 + 容器可写层（写时复制）、**build 与 run 是分界线**（Dockerfile 的 RUN 进镜像，exec 手敲进可写层且删容器即失）、`-p 宿主机:容器` 与 `0.0.0.0`、Dockerfile 六行顺序 + 两次 COPY 的缓存收益（实测改代码后 0.0s vs 17.7s）、`--no-cache-dir`、`.dockerignore`（`.env` 分层后删不掉）、compose 服务名=内网 DNS、`depends_on: condition: service_healthy`（启动≠就绪）、命名卷 `down` 留数据 / `down -v` 清空。探底：Q1「直接 docker 启动」（项目根本没有 Dockerfile）、Q2 镜像/容器/VM「不知道」。纠错：误以为容器里 pip install 会进镜像（答「会的」）→ 主动追问「已装依赖和可写层怎么一会在一会不在」→ 讲清时机差异；误以为容器里 localhost 能连本地 PG（「应该可以吧，容器也会安装 pg 的」）→ 讲一容器一职责 + 服务名。练习 1 用户独立一次通过；练习 2 写了 `build ./app`、裸 `ports` 两处 YAML 语法错误后要求 Claude 写完整版。环境：Docker Hub 直连 DNS 污染偶发 i/o timeout（重试可过）。笔记见 `5架构设计/21Docker/notes.md`。 |
 
 ---
 

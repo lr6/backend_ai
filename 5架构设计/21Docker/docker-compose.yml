@@ -1,0 +1,56 @@
+# docker-compose.yml — 一条命令起 app + postgres + redis
+# 用法（在 21Docker/ 目录下）：
+#   docker compose up -d --build   启动（构建并后台运行）
+#   docker compose ps              看状态
+#   docker compose logs -f app     看 app 日志
+#   docker compose down            停止并删除容器（保留命名卷）
+#   docker compose down -v         连数据卷一起删（数据清空）
+
+services:
+  # ---------- 数据库 ----------
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: todo
+      POSTGRES_PASSWORD: todo
+      POSTGRES_DB: todo
+    volumes:
+      # 命名卷 pgdata 挂到 PG 的数据目录，容器删了数据还在
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # 体检命令：pg_isready 成功返回 0 就算健康
+      test: ["CMD-SHELL", "pg_isready -U todo"]
+      interval: 5s      # 每 5 秒查一次
+      timeout: 3s       # 单次超时 3 秒
+      retries: 10       # 连续失败 10 次才判定 unhealthy
+
+  # ---------- 缓存 ----------
+  redis:
+    image: redis:7
+    healthcheck:
+      # redis-cli ping 返回 PONG，成功退出码 0
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ---------- 你的应用 ----------
+  app:
+    build: ./app            # 用 app/ 目录下的 Dockerfile 构建
+    ports:
+      - "8090:8000"         # 宿主机 8090 → 容器 8000
+    environment:
+      # 主机名用服务名（postgres / redis），compose 内网 DNS 自动解析
+      DATABASE_URL: postgresql://todo:todo@postgres:5432/todo
+      REDIS_URL: redis://redis:6379/0
+      GREETING: hello from compose
+    depends_on:
+      # 等两个依赖「健康」后再启动 app，光启动不算
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+# 命名卷声明（不加这一行，上面 volumes 里的 pgdata: 会报错）
+volumes:
+  pgdata:
