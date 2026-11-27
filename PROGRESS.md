@@ -11,14 +11,14 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第五阶段：架构与系统设计 |
-| **当前学习项** | 23 Monolith vs Microservices — 架构取舍（⬜ 未开始）|
-| **总进度** | 主路线 **22 / 32**（第一至第四阶段全部完成） |
+| **当前学习项** | 24 Database Indexes — B-Tree、EXPLAIN ANALYZE（⬜ 未开始）|
+| **总进度** | 主路线 **23 / 32**（第一至第四阶段全部完成） |
 | **预科进度** | 第零阶段 **6 / 6** ✅ |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅、第二阶段 ✅、第三阶段 ✅、第四阶段 ✅ |
 | **最近学习日期** | 2026-11-27 |
-| **最近学习内容** | 22 Celery + Redis ✅（broker/worker/backend、进程隔离、重试、beat 定时、eager vs 真实 worker）|
+| **最近学习内容** | 23 Monolith vs Microservices ✅（三条判据、分布式单体、拆分信号、纵向按业务切、跨服务拼装、最终一致）|
 
-> **进度口径**：32 项指 `FRONTEND_TO_FULLSTACK.md` 里编号 1–32 的主路线；第零阶段 0.1–0.6 是 Python 预科，不在编号内，单独计 6/6。已学主题合计 20 + 6 = 26 个。
+> **进度口径**：32 项指 `FRONTEND_TO_FULLSTACK.md` 里编号 1–32 的主路线；第零阶段 0.1–0.6 是 Python 预科，不在编号内，单独计 6/6。已学主题合计 23 + 6 = 29 个。
 
 ---
 
@@ -121,7 +121,7 @@
 |---|------|--------|---------|------|
 | 21 | ✅ | **Docker** — Dockerfile、docker-compose | 2026-11-24 | 镜像/容器/VM、只读层+可写层（build vs run 分界线）、-p 映射、Dockerfile 六行 + 层缓存实测（0.0s vs 17.7s）、.dockerignore 与 .env 泄露、compose 服务名 DNS、healthcheck + service_healthy、命名卷持久化 |
 | 22 | ✅ | **Celery + Redis** — 异步任务队列 | 2026-11-27 | broker/worker/backend、进程隔离与序列化、delay/AsyncResult、状态与异常、retry 机制、beat 定时、eager vs 真实 worker |
-| 23 | ⬜ | **Monolith vs Microservices** — 架构取舍 | — | — |
+| 23 | ✅ | **Monolith vs Microservices** — 架构取舍 | 2026-11-27 | 单体 vs 微服务三判据、分布式单体、数据边界不能 JOIN、纵向按业务切 vs 横向按层切、拆分信号、Modular Monolith→Strangler Fig、进程隔离≠微服务 |
 | 24 | ⬜ | **Database Indexes** — B-Tree、EXPLAIN ANALYZE | — | — |
 | 25 | ⬜ | **MongoDB** — 文档型数据库、motor 驱动 | — | — |
 | 26 | ⬜ | **WebSockets** — FastAPI WebSocket | — | — |
@@ -201,6 +201,7 @@
 | 2026-11-15 | 20 CI/CD ✅ 完成 | 练习 1–4 完成，GitHub 真实运行 CI #1 全绿（test ✅ deploy ✅）。核心：CI=push 自动拉代码/装依赖/lint/test/build；CD 的 Continuous Delivery（自动到可发布，人工上线）vs Continuous Deployment（全自动），Vercel 默认属于后者；GitHub Actions 模型 workflow→job→steps，runner 是 GitHub 临时 Linux VM、用完即销毁，所以部署要用 SSH/镜像/self-hosted runner；steps 顺序执行且隐式 `if: success()`，某步失败后续跳过，`needs: test` 等的是成功，失败则下游 skipped；`if: always()/failure()`、`continue-on-error` 是反例开关；`uses` 用 action（必须带 @版本）、`with` 传参、`run: |` 写多行脚本；`${{ }}` 表达式、`secrets.XXX` 未配置时为空字符串不报错。探底：CI 跑在 GitHub 的 Linux 机器答对；CI/CD 定义全不知道 → 直接讲；Vercel 自动上线判为 Deployment 答对；检查题「step3 失败 step4/deploy 会不会跑」答「不会，不知道为什么」→ 补隐式 success 语义。踩坑：**打开 check.py 当练习文件找不到 on**（路径混淆）；练习 1 写成 `on: push, pull_request, workflow_dispatch` 被当成一个字符串；练习 2 `with:` 和 `-` 对齐导致 `expected <block end>` + `with: python-version: ...` 同行嵌套 key；用户明确要求直接给答案 → Claude 写完整份并逐段讲解。**Claude 自己的 bug**：`check.py --wait` 在首个 run 出现前直接返回，已修。验证方式：公开 API 轮询 `check.py --remote --wait`，无需 gh/token。笔记见 `4工程化/20CICD/notes.md`。 |
 | 2026-11-24 | 21 Docker ✅ 完成 | 两个练习全绿（练习 1 Dockerfile 5 项断言，练习 2 compose 7 项断言）。核心：镜像只读层 + 容器可写层（写时复制）、**build 与 run 是分界线**（Dockerfile 的 RUN 进镜像，exec 手敲进可写层且删容器即失）、`-p 宿主机:容器` 与 `0.0.0.0`、Dockerfile 六行顺序 + 两次 COPY 的缓存收益（实测改代码后 0.0s vs 17.7s）、`--no-cache-dir`、`.dockerignore`（`.env` 分层后删不掉）、compose 服务名=内网 DNS、`depends_on: condition: service_healthy`（启动≠就绪）、命名卷 `down` 留数据 / `down -v` 清空。探底：Q1「直接 docker 启动」（项目根本没有 Dockerfile）、Q2 镜像/容器/VM「不知道」。纠错：误以为容器里 pip install 会进镜像（答「会的」）→ 主动追问「已装依赖和可写层怎么一会在一会不在」→ 讲清时机差异；误以为容器里 localhost 能连本地 PG（「应该可以吧，容器也会安装 pg 的」）→ 讲一容器一职责 + 服务名。练习 1 用户独立一次通过；练习 2 写了 `build ./app`、裸 `ports` 两处 YAML 语法错误后要求 Claude 写完整版。环境：Docker Hub 直连 DNS 污染偶发 i/o timeout（重试可过）。笔记见 `5架构设计/21Docker/notes.md`。 |
 | 2026-11-27 | 22 Celery + Redis ✅ 完成 | 练习 1–6 全绿（eager）+ `check.py` 真实 worker 16 项全绿。核心：`async def` ≠ 后台任务（async 是进程内等待时切走，Celery 是交给另一拨进程）；broker（Redis db0）/ producer（`.delay`）/ worker（`--pool=solo`）/ result backend（Redis db1）；进程隔离 → 参数必须 JSON 可序列化、worker 自建 Session、传 id 不传 ORM 对象；`.delay` 只投递返回 `AsyncResult`，`.id` 是运单号，worker 没起也不报错只是 PENDING；`AsyncResult(task_id, app=app)` 要 app 是因为 backend 地址/序列化配置在 app 里；PENDING 三义（排队中 / 不存在 / worker 没起）；FAILURE 异常存 backend、`get(propagate=)`、`.traceback`；retry 不是循环而是重新投递，`bind=True`、`self.request.retries`、`raise self.retry`，每次重试是全新执行局部变量不保留；默认执行前 ack，`acks_late=True` + 幂等；beat 是第三个进程只投递不执行、生产只跑一个实例，`crontab(minute="*/5")`；eager 模式绕过 broker/worker 只验逻辑，真实行为看 check.py。探底：Q1 不会 → 直接讲；Q2 方向对 → 补 ack 语义；`todo_id` 答对。踩坑：练习1 任务体里写 `add.delay` 套娃且无 return；练习5 `tsak_id` 拼写、`return AsyncResult` 对象（500）、`celery.result.AsyncResult` NameError；练习4/6 明确说不会 → 用户要求下 Claude 直接写答案并逐行讲解。Claude 的锅：测试脚本在接口返回 null 时 `body.get` 崩溃（已修 `(resp.json() or {})`）、check 序列化用例参数个数不对先报 TypeError（改用 `fail_task.delay(object())`）、eager 结果默认不写 backend 需 `store_eager_result=True`。Review：GET 失败任务返回 `error` 字段（直接返回 Exception 会序列化 500），check.py 补 4 项 API 断言（16 项全绿）。笔记见 `5架构设计/22Celery/notes.md`。 |
+| 2026-11-27 | 23 Monolith vs Microservices ✅ 完成 | 5 练习 21 项断言全绿。核心：微服务是**部署形态**不是技术，三判据（独立部署 / 独立库 / 网络调用）；`deploy_units>1 + 共库` = **分布式单体**（两头坏处都占），极端版 nanoservice；数据边界是最难的部分——不能 JOIN（技术上跨实例 + 设计上表结构变公共 API），绕法 API 组合 / 冗余 / 读模型 / BFF，**N+1 换到网络层**（批量接口一次拿、`.get` 降级）；微服务解决**组织问题**（发版阻塞 / 独立扩容 / 故障隔离），不解决烂代码（Conway's Law）；拆的信号 vs 伪信号；**纵向按业务能力切**，横向按 controller/service/dao 切把「分层当边界」；演进 Modular Monolith → Strangler Fig，不大爆炸重写；**进程隔离（uvicorn+Celery worker）≠ 微服务**，Redis/Nginx 是基础设施。探底两题全「不知道」→ 直接讲。检查题：判据（改一处全量部署）、A/B 方案坑、代码乱 vs 发版阻塞、进程隔离全答对；**切服务那题切法对但理由退回横向思维**（「因为都有独立 dao/controller/service」→ 纠正：那是结果不是依据，真正理由是业务能力/数据所有权/变更原因/能独立发版）；横切那题答「不知道」但自己正确说出请求路径 gateway→controller→service→dao，被点破「每个箭头都变成 HTTP」。练习：用户只写练习 1（嵌套 if 逻辑正确，Review 建议拍平 guard clause），2–5 要求 Claude 写并逐行讲解（`any` + set 成员判断、`get(key, False)` 可选字段、集合推导去重 + 一次批量 + 拼装、原地修改 + 幂等）。笔记见 `5架构设计/23MonolithVsMicroservices/notes.md`。 |
 
 ---
 
