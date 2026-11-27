@@ -6,7 +6,7 @@
 > 文件：
 > - `celery_app.py` — Celery 实例（broker / backend / 序列化配置）
 > - `practice.py` — 6 个练习 + eager 模式自动测试
-> - `check.py` — 真实 worker 端到端 12 项断言（自己起 worker 子进程）
+> - `check.py` — 真实 worker 端到端 16 项断言（自己起 worker 子进程）
 > - `notes.md` — 本文件
 
 ---
@@ -193,6 +193,17 @@ def get_task(task_id: str):
 
 - 知识点：跨请求只能传 task_id；结果在 backend，凭 id 查。GET 里没有复用 POST 的对象，也不需要。
 
+**Review 追加（通过测试 ≠ 质量过关）**：GET 直接返回 `result.result`，遇到 FAILURE 任务时那是 Exception 对象，FastAPI 序列化会 500。改为：
+
+```python
+result = AsyncResult(task_id, app=app)
+if result.state == "FAILURE":
+    return {"state": result.state, "error": str(result.result)}
+return {"state": result.state, "result": result.result}
+```
+
+`check.py` 相应补了 4 项断言：API POST 拿到 task_id、POST→GET 轮询拿到结果、查询失败任务返回 200、失败任务带 `error` 字段。
+
 ### 练习 6：不会 → 直接给配置 + 讲解
 
 - 用户说「我也不会写」。
@@ -228,6 +239,7 @@ def get_task(task_id: str):
 | `return self.retry(...)` | `retry` 是抛异常不是返回值 | `raise self.retry(exc=...)` |
 | 状态一直 PENDING | worker 没起 / 任务不存在 / 还在排队（三者同状态） | 查 worker 进程、`celery inspect` |
 | eager 测试绿了以为异步没问题 | eager 绕过了 broker/worker | 跑 `check.py` 真实 worker 验证 |
+| GET 直接返回 `result.result` | FAILURE 时是 Exception 对象，序列化 500 | 先判 `state`，失败返回 `{"state", "error": str(...)}` |
 | 生产里 worker 崩了任务丢 | 默认执行前 ack（`acks_late=False`） | `acks_late=True` + 任务幂等 |
 
 ---

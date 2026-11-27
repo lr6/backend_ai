@@ -85,11 +85,14 @@ def create_add_task(payload: AddRequest):
 
 @api.get("/tasks/{task_id}")
 def get_task(task_id: str):
-    """按 task_id 查状态，返回 {"state": "...", "result": ...}
+    """按 task_id 查状态。
 
-    提示：celery.result.AsyncResult(task_id, app=app)
+    成功：{"state": "SUCCESS", "result": 5}
+    失败：{"state": "FAILURE", "error": "..."}（异常对象不能直接当 JSON 返回）
     """
     result = AsyncResult(task_id, app=app)
+    if result.state == "FAILURE":
+        return {"state": result.state, "error": str(result.result)}
     return {"state": result.state, "result": result.result}
 
 

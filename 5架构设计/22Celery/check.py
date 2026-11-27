@@ -21,6 +21,7 @@ sys.path.insert(0, str(HERE))
 
 import redis
 from celery.result import AsyncResult
+from fastapi.testclient import TestClient
 from kombu.exceptions import EncodeError
 
 from celery_app import app
@@ -101,7 +102,28 @@ def main():
         fl = practice.flaky_task.delay()
         check("重试后最终成功", fl.get(timeout=20) == 2, 2, fl.result)
 
-        # 7. 参数必须能 JSON 序列化
+        # 7. API 层：真实 worker 下 POST→GET 走通
+        client = TestClient(practice.api)
+        sub = client.post("/tasks/add", json={"x": 1, "y": 2})
+        tid = (sub.json() or {}).get("task_id")
+        check("API POST 返回 task_id", isinstance(tid, str) and tid != "", "非空字符串", repr(tid))
+        if tid:
+            body = {}
+            deadline = time.time() + 10
+            while time.time() < deadline:
+                body = client.get(f"/tasks/{tid}").json() or {}
+                if body.get("state") == "SUCCESS":
+                    break
+                time.sleep(0.1)
+            check("API POST→GET 拿到结果", body.get("result") == 3, 3, body.get("result"))
+
+        # 8. API 层：失败任务不能 500
+        resp = client.get(f"/tasks/{f.id}")
+        body = resp.json() or {}
+        check("API 查询失败任务返回 200", resp.status_code == 200, 200, resp.status_code)
+        check("API 失败任务返回 error 字段", body.get("error") == "炸了", "炸了", body.get("error"))
+
+        # 9. 参数必须能 JSON 序列化
         try:
             practice.fail_task.delay(object())
             raised = "没有报错"
@@ -109,7 +131,7 @@ def main():
             raised = f"EncodeError: {str(e)[:40]}…"
         check("传不可序列化对象会被拒绝", raised.startswith("EncodeError"), "EncodeError", raised)
 
-        # 8. 不存在的 task_id 也报 PENDING
+        # 10. 不存在的 task_id 也报 PENDING
         check(
             "未知 task_id 的状态是 PENDING",
             AsyncResult("00000000-0000-0000-0000-000000000000", app=app).state == "PENDING",
@@ -117,7 +139,7 @@ def main():
             AsyncResult("00000000-0000-0000-0000-000000000000", app=app).state,
         )
 
-        # 9. beat 配置就绪（不启动 beat，只验证配置）
+        # 11. beat 配置就绪（不启动 beat，只验证配置）
         entry = practice.BEAT_SCHEDULE.get("add-every-5-minutes", {})
         check(
             "beat 调度配置指向 task",
