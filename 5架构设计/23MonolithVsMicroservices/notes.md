@@ -241,6 +241,22 @@ notify-service  ← （需要时才建）
 
 用户检查题回答：空集合写 `set()` ✅、`any([])` 返回 `False` ✅。
 
+### 补充提问 2：`all([])` 为什么是 True
+
+- `all` 本质是 for 循环找假：一个都没找到 → `return True`；空列表循环进不去 → 直接 True
+- 逻辑上叫**真空真（vacuous truth）**：全称命题「所有 X 都满足 P」在 X 为空时恒真，因为找不到反例（「群里所有人都已实名」，群里没人 → 无法证伪）
+- 数学上：`all` = AND、`any` = OR，`True` 是 AND 的单位元、`False` 是 OR 的单位元；JS 一致：`[].every()` → true、`[].some()` → false
+- **实战陷阱**：`if all(t.done for t in todos): archive()` 空列表会放行 → 要写成 `if todos and all(...)`；与练习 4 `if not todo_rows: return []` 同一思想：空输入单独考虑
+
+### 补充提问 3：`{row["user_id"] for row in todo_rows}` 是 set 吗
+
+- 是**集合推导式**。四种推导弹式认括号：`[...]` list、`{x for ...}` set、`{k: v for ...}` dict、`(x for ...)` 生成器
+- 这里 set 两个作用：去重（三条 todo 两个用户 → 不发 `[10, 11, 10]`）、成员判断 O(1)；`list()` 是转成接口契约要的列表
+- set 元素必须可哈希：装 dict/list 会 `TypeError: unhashable type`
+- **换成 list 只会挂「id 去重」一条断言**：返回值依然正确、调用次数依然是 1 次——这是「结果正确但调用契约错误」的典型 bug，线上表现为对方日志刷重复 id、撞 `max_ids` 上限、限流配额被浪费
+- **用户答错点**：以为 list 写法会导致「多调用几次」。纠正：调用次数不变（还是 1 次），变的是**单次请求里的 id 数量**（1000 条 todo 属于 5 个用户 → set 发 5 个 id，list 发 1000 个 id）
+
+
 
 ---
 
@@ -262,3 +278,6 @@ notify-service  ← （需要时才建）
 | `{"a", "b"}` 当元组用 / 空 `{}` 当空集合 | `{}` 是 dict，空 set 写 `set()`；元组是 `()` | 容器字面量（第 2 次卡住） |
 | 不知道 `any(...)` 是什么 | `any` = JS `some()`，短路；`all` = `every()`；`any([])`=False、`all([])`=True | 内置函数 |
 | 以为 `any(x for x in xs)` 外面是 tuple | 那是生成器表达式，惰性求值 | 生成器表达式 |
+| `all([])` 返回 True 想不通 | 真空真：空集找不到反例；AND 单位元是 True | 内置函数 |
+| `if all(...)` 直接用在可能为空的列表上 | 空列表默认放行 → 先 `if todos and all(...)` | 空输入语义 |
+| 以为 list 写法会「多调用几次接口」 | 调用次数不变，变的是**单次请求里的 id 数量** | 批量接口 |
