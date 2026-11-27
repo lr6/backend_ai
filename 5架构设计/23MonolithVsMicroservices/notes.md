@@ -218,6 +218,30 @@ notify-service  ← （需要时才建）
 - 练习 2–5 用户要求 Claude 直接写 → 逐行讲解实现
 - 21 项断言一次全绿
 
+### 补充提问（练习完成后，用户主动问）
+
+> 「练习 2 的 `layer_kinds = {"controller", "service", "dao"}` 是啥，元组吗？`any` 是什么玩法」
+
+**这是第 2 次在容器字面量上卡住**（第 14 项 CORS 问过「`not in` 后面一会 `()` 一会 `{}`」），说明 `tuple / list / set / dict` 的括号形状还没焊死。
+
+| 写法 | 类型 |
+|------|------|
+| `[a, b]` | list |
+| `(a, b)` | tuple |
+| `{a, b}` | **set** |
+| `{"k": v}` | dict |
+| `{}` | **dict**（坑！空 set 只能 `set()`） |
+
+- 用 set 的理由：成员判断 `x in set` 是哈希查找 O(1)，`x in list` 是逐个比 O(n)
+- `any(iterable)` = JS 的 `Array.prototype.some()`；短路，第一个真就停
+- `all(iterable)` = JS 的 `Array.prototype.every()`
+- 空集合语义：`any([])` → `False`，`all([])` → `True`
+- `for x in xs` 外套 `()` 是**生成器表达式**（惰性、边算边喂），不是 tuple
+- 练习 2 读法：「任一服务的 responsibility 在 `{controller, service, dao}` 里 → 返回 `["horizontal_split"]`」；`services` 为空时 `any` 返回 `False` → 返回 `[]`（没有服务就没有横切问题）
+
+用户检查题回答：空集合写 `set()` ✅、`any([])` 返回 `False` ✅。
+
+
 ---
 
 ## 四、踩坑速查
@@ -235,3 +259,6 @@ notify-service  ← （需要时才建）
 | 远程数据缺失直接抛异常 | `.get(id, 默认值)` 降级 | 可用性 |
 | 事件处理器每次新建列表、不幂等 | 原地写同一值，重复消费结果不变 | 幂等（连 Celery acks_late） |
 | 一上来就拆微服务 | Modular Monolith → Strangler Fig 逐步抽 | 演进路径 |
+| `{"a", "b"}` 当元组用 / 空 `{}` 当空集合 | `{}` 是 dict，空 set 写 `set()`；元组是 `()` | 容器字面量（第 2 次卡住） |
+| 不知道 `any(...)` 是什么 | `any` = JS `some()`，短路；`all` = `every()`；`any([])`=False、`all([])`=True | 内置函数 |
+| 以为 `any(x for x in xs)` 外面是 tuple | 那是生成器表达式，惰性求值 | 生成器表达式 |
