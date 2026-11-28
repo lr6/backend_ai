@@ -11,12 +11,12 @@
 | 项目 | 值 |
 |------|-----|
 | **当前阶段** | 第五阶段：架构与系统设计 |
-| **当前学习项** | 24 Database Indexes — B-Tree、EXPLAIN ANALYZE（⬜ 未开始）|
-| **总进度** | 主路线 **23 / 32**（第一至第四阶段全部完成） |
+| **当前学习项** | 25 MongoDB — 文档型数据库、motor 驱动（⬜ 未开始）|
+| **总进度** | 主路线 **24 / 32**（第一至第四阶段全部完成） |
 | **预科进度** | 第零阶段 **6 / 6** ✅ |
 | **已完成阶段** | 第零阶段 ✅、第一阶段 ✅、第二阶段 ✅、第三阶段 ✅、第四阶段 ✅ |
-| **最近学习日期** | 2026-11-27 |
-| **最近学习内容** | 23 Monolith vs Microservices ✅（三条判据、分布式单体、拆分信号、纵向按业务切、跨服务拼装、最终一致）|
+| **最近学习日期** | 2026-11-28 |
+| **最近学习内容** | 24 Database Indexes ✅（B-Tree 寻址、EXPLAIN ANALYZE 关键指标、选择性、最左前缀、索引失效、部分索引）|
 
 > **进度口径**：32 项指 `FRONTEND_TO_FULLSTACK.md` 里编号 1–32 的主路线；第零阶段 0.1–0.6 是 Python 预科，不在编号内，单独计 6/6。已学主题合计 23 + 6 = 29 个。
 
@@ -122,7 +122,7 @@
 | 21 | ✅ | **Docker** — Dockerfile、docker-compose | 2026-11-24 | 镜像/容器/VM、只读层+可写层（build vs run 分界线）、-p 映射、Dockerfile 六行 + 层缓存实测（0.0s vs 17.7s）、.dockerignore 与 .env 泄露、compose 服务名 DNS、healthcheck + service_healthy、命名卷持久化 |
 | 22 | ✅ | **Celery + Redis** — 异步任务队列 | 2026-11-27 | broker/worker/backend、进程隔离与序列化、delay/AsyncResult、状态与异常、retry 机制、beat 定时、eager vs 真实 worker |
 | 23 | ✅ | **Monolith vs Microservices** — 架构取舍 | 2026-11-27 | 单体 vs 微服务三判据、分布式单体、数据边界不能 JOIN、纵向按业务切 vs 横向按层切、拆分信号、Modular Monolith→Strangler Fig、进程隔离≠微服务 |
-| 24 | ⬜ | **Database Indexes** — B-Tree、EXPLAIN ANALYZE | — | — |
+| 24 | ✅ | **Database Indexes** — B-Tree、EXPLAIN ANALYZE | 2026-11-28 | B-Tree 矮胖/回表、EXPLAIN 关键指标（rows 估算 vs actual、loops、Filter、Buffers）、选择性、最左前缀、函数失效、ORDER BY+LIMIT、部分索引、外键不自动建索引 |
 | 25 | ⬜ | **MongoDB** — 文档型数据库、motor 驱动 | — | — |
 | 26 | ⬜ | **WebSockets** — FastAPI WebSocket | — | — |
 
@@ -202,6 +202,7 @@
 | 2026-11-24 | 21 Docker ✅ 完成 | 两个练习全绿（练习 1 Dockerfile 5 项断言，练习 2 compose 7 项断言）。核心：镜像只读层 + 容器可写层（写时复制）、**build 与 run 是分界线**（Dockerfile 的 RUN 进镜像，exec 手敲进可写层且删容器即失）、`-p 宿主机:容器` 与 `0.0.0.0`、Dockerfile 六行顺序 + 两次 COPY 的缓存收益（实测改代码后 0.0s vs 17.7s）、`--no-cache-dir`、`.dockerignore`（`.env` 分层后删不掉）、compose 服务名=内网 DNS、`depends_on: condition: service_healthy`（启动≠就绪）、命名卷 `down` 留数据 / `down -v` 清空。探底：Q1「直接 docker 启动」（项目根本没有 Dockerfile）、Q2 镜像/容器/VM「不知道」。纠错：误以为容器里 pip install 会进镜像（答「会的」）→ 主动追问「已装依赖和可写层怎么一会在一会不在」→ 讲清时机差异；误以为容器里 localhost 能连本地 PG（「应该可以吧，容器也会安装 pg 的」）→ 讲一容器一职责 + 服务名。练习 1 用户独立一次通过；练习 2 写了 `build ./app`、裸 `ports` 两处 YAML 语法错误后要求 Claude 写完整版。环境：Docker Hub 直连 DNS 污染偶发 i/o timeout（重试可过）。笔记见 `5架构设计/21Docker/notes.md`。 |
 | 2026-11-27 | 22 Celery + Redis ✅ 完成 | 练习 1–6 全绿（eager）+ `check.py` 真实 worker 16 项全绿。核心：`async def` ≠ 后台任务（async 是进程内等待时切走，Celery 是交给另一拨进程）；broker（Redis db0）/ producer（`.delay`）/ worker（`--pool=solo`）/ result backend（Redis db1）；进程隔离 → 参数必须 JSON 可序列化、worker 自建 Session、传 id 不传 ORM 对象；`.delay` 只投递返回 `AsyncResult`，`.id` 是运单号，worker 没起也不报错只是 PENDING；`AsyncResult(task_id, app=app)` 要 app 是因为 backend 地址/序列化配置在 app 里；PENDING 三义（排队中 / 不存在 / worker 没起）；FAILURE 异常存 backend、`get(propagate=)`、`.traceback`；retry 不是循环而是重新投递，`bind=True`、`self.request.retries`、`raise self.retry`，每次重试是全新执行局部变量不保留；默认执行前 ack，`acks_late=True` + 幂等；beat 是第三个进程只投递不执行、生产只跑一个实例，`crontab(minute="*/5")`；eager 模式绕过 broker/worker 只验逻辑，真实行为看 check.py。探底：Q1 不会 → 直接讲；Q2 方向对 → 补 ack 语义；`todo_id` 答对。踩坑：练习1 任务体里写 `add.delay` 套娃且无 return；练习5 `tsak_id` 拼写、`return AsyncResult` 对象（500）、`celery.result.AsyncResult` NameError；练习4/6 明确说不会 → 用户要求下 Claude 直接写答案并逐行讲解。Claude 的锅：测试脚本在接口返回 null 时 `body.get` 崩溃（已修 `(resp.json() or {})`）、check 序列化用例参数个数不对先报 TypeError（改用 `fail_task.delay(object())`）、eager 结果默认不写 backend 需 `store_eager_result=True`。Review：GET 失败任务返回 `error` 字段（直接返回 Exception 会序列化 500），check.py 补 4 项 API 断言（16 项全绿）。笔记见 `5架构设计/22Celery/notes.md`。 |
 | 2026-11-27 | 23 Monolith vs Microservices ✅ 完成 | 5 练习 21 项断言全绿。核心：微服务是**部署形态**不是技术，三判据（独立部署 / 独立库 / 网络调用）；`deploy_units>1 + 共库` = **分布式单体**（两头坏处都占），极端版 nanoservice；数据边界是最难的部分——不能 JOIN（技术上跨实例 + 设计上表结构变公共 API），绕法 API 组合 / 冗余 / 读模型 / BFF，**N+1 换到网络层**（批量接口一次拿、`.get` 降级）；微服务解决**组织问题**（发版阻塞 / 独立扩容 / 故障隔离），不解决烂代码（Conway's Law）；拆的信号 vs 伪信号；**纵向按业务能力切**，横向按 controller/service/dao 切把「分层当边界」；演进 Modular Monolith → Strangler Fig，不大爆炸重写；**进程隔离（uvicorn+Celery worker）≠ 微服务**，Redis/Nginx 是基础设施。探底两题全「不知道」→ 直接讲。检查题：判据（改一处全量部署）、A/B 方案坑、代码乱 vs 发版阻塞、进程隔离全答对；**切服务那题切法对但理由退回横向思维**（「因为都有独立 dao/controller/service」→ 纠正：那是结果不是依据，真正理由是业务能力/数据所有权/变更原因/能独立发版）；横切那题答「不知道」但自己正确说出请求路径 gateway→controller→service→dao，被点破「每个箭头都变成 HTTP」。练习：用户只写练习 1（嵌套 if 逻辑正确，Review 建议拍平 guard clause），2–5 要求 Claude 写并逐行讲解（`any` + set 成员判断、`get(key, False)` 可选字段、集合推导去重 + 一次批量 + 拼装、原地修改 + 幂等）。**课后追问**：容器字面量 `{a,b}` 是 set / 空 `{}` 是 dict（第 2 次卡住，第 14 项 CORS 也问过）；`all([])` 为 True 的真空真 + AND/OR 单位元；`{x for ...}` 集合推导式；**混淆「调用次数」与「单次请求里的 id 数量」**（以为 list 写法会多调几次接口，实为参数里重复 id 变多，1000 条 → 1000 个 id 撞 `max_ids`）。笔记见 `5架构设计/23MonolithVsMicroservices/notes.md`。 |
+| 2026-11-28 | 24 Database Indexes ✅ 完成 | 8 练习全绿（连跑两次可重复）。环境：`index_practice_db` + `big_todos` 100 万行（user_id 1..10000 每人 100 行、done 99 万 true / 1 万 false）。核心：B-Tree 矮胖（百万行 3~4 层）、索引存列值+行位置要回表、主键/UNIQUE 自动建索引；EXPLAIN ANALYZE 关键指标（cost / rows 估算 vs actual / width / actual time / loops / Filter 与 Rows Removed / Index Cond / Buffers / Planning vs Execution）；**loops 是每次循环平均值，总行数 = rows × loops**（用户答 2500，正确 500）；选择性（done=true 99% → Seq Scan 54.9ms，done=false 1% → Index Scan 9.1ms）；复合索引最左前缀；函数包裹列失效；ORDER BY LIMIT 27.7ms→0.07ms。实测：user_id=42 建索引 42.6ms→0.15ms。**应用题纠错**：列表 `WHERE user_id=? AND done=false ORDER BY created_at DESC LIMIT 20` 用户答「done 建部分索引 + created_at 建索引」，漏了 user_id 且两条单列索引无法提供排序 → 正确是一条部分复合 `(user_id, created_at DESC) WHERE done=false`，等值列在前、排序列在后、常量进 WHERE。FK 列不自动建索引（项目 `todos.user_id` 缺索引）；单条 `id+user_id` 主键够用；删用户需要 `todos(user_id)`。用户中途质疑「这章没应用」，用分页列表 / FK 索引 / 唯一查询 / 后台状态扫描 / 线上慢查询排查 + 不该建索引的场景回应。笔记见 `5架构设计/24DatabaseIndexes/notes.md`。 |
 
 ---
 
